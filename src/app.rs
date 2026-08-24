@@ -7,6 +7,19 @@ use gpui::*;
 use std::sync::Arc;
 
 pub fn run(cx: &mut App) {
+    // dummy keepalive node
+    let _keepalive = cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds::from_corners(
+                Point::default(),
+                Point::default(),
+            ))),
+            show: false,
+            ..Default::default()
+        },
+        |_, cx| cx.new(|_| gpui::Empty),
+    );
+
     let state = Arc::new(key::MenuState::default());
     let (tx, mut rx) = unbounded();
 
