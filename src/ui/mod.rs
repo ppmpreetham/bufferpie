@@ -3,37 +3,37 @@ pub mod math;
 pub mod pie_menu;
 
 use gpui::*;
-use pie_menu::{MenuItem, PieMenu, PieMenuView};
+use pie_menu::{Item, PieMenu, PieMenuView};
 
 fn default_menus() -> Vec<PieMenu> {
     vec![
         PieMenu {
-            name: "Edit".into(),
+            name: "EDIT".into(),
             items: vec![
-                MenuItem {
+                Item {
                     label: "Copy".into(),
                 },
-                MenuItem {
+                Item {
                     label: "Paste".into(),
                 },
-                MenuItem {
+                Item {
                     label: "Cut".into(),
                 },
-                MenuItem {
+                Item {
                     label: "Undo".into(),
                 },
             ],
         },
         PieMenu {
-            name: "Window".into(),
+            name: "WINDOW".into(),
             items: vec![
-                MenuItem {
+                Item {
                     label: "Minimize".into(),
                 },
-                MenuItem {
+                Item {
                     label: "Maximize".into(),
                 },
-                MenuItem {
+                Item {
                     label: "Close".into(),
                 },
             ],

@@ -1,5 +1,7 @@
 use rdev::Key;
 use std::path::PathBuf;
+
+#[derive(Clone)]
 pub enum Action {
     /// Executes a cmd
     Command(String),

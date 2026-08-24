@@ -2,6 +2,8 @@ use gpui::*;
 use std::f32::consts::PI;
 use std::time::Duration;
 
+use crate::actions::types::Action;
+
 use super::config::Colors;
 use super::math::{normalize_angle, selected_sector};
 
@@ -11,13 +13,14 @@ const ITEM_ORBIT_RADIUS: f32 = 160.0;
 const SIDE_SLOT_WIDTH: f32 = 32.0;
 
 #[derive(Clone)]
-pub struct MenuItem {
+pub struct Item {
     pub label: SharedString,
+    // pub action: Option<Action>,
 }
 
 pub struct PieMenu {
     pub name: SharedString,
-    pub items: Vec<MenuItem>,
+    pub items: Vec<Item>,
 }
 
 pub struct PieMenuView {
@@ -186,7 +189,7 @@ fn render_highlight_arc(
 fn render_menu_items(
     center_x: f32,
     center_y: f32,
-    items: &[MenuItem],
+    items: &[Item],
     selected: usize,
     colors: &Colors,
 ) -> Vec<impl IntoElement> {
