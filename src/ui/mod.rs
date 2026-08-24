@@ -10,24 +10,16 @@ pub fn open_pie_menu(cx: &mut App, x: f32, y: f32) -> Result<WindowHandle<PieMen
 
     let items = vec![
         MenuItem {
-            logo: "".into(),
             label: "Copy".into(),
-            shortcut: "Ctrl+C".into(),
         },
         MenuItem {
-            logo: "".into(),
             label: "Paste".into(),
-            shortcut: "Ctrl+V".into(),
         },
         MenuItem {
-            logo: "".into(),
             label: "Cut".into(),
-            shortcut: "Ctrl+X".into(),
         },
         MenuItem {
-            logo: "".into(),
             label: "Undo".into(),
-            shortcut: "Ctrl+Z".into(),
         },
     ];
 

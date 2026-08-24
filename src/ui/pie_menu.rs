@@ -6,15 +6,13 @@ const COLORS: Colors = Colors::DEFAULT;
 const RING_RADIUS: f32 = 20.0;
 const RING_THICKNESS: f32 = 8.0;
 const ITEM_ORBIT_RADIUS: f32 = 160.0;
-const SIDE_SLOT_WIDTH: f32 = 32.0;
 
 use gpui::SharedString;
 
 #[derive(Clone, Default)]
 pub struct MenuItem {
-    pub logo: SharedString,
     pub label: SharedString,
-    pub shortcut: SharedString,
+    // pub function: Fn,
 }
 
 pub struct PieMenuView {
@@ -139,27 +137,15 @@ impl PieMenuView {
                         .py_1p5()
                         .bg(bg)
                         .rounded_xl()
-                        .child(
-                            div()
-                                .w(px(SIDE_SLOT_WIDTH))
-                                .flex()
-                                .justify_center()
-                                .child(item.logo.clone()),
-                        )
+                        .border_1()
+                        .border_color(rgb(COLORS.surface))
                         .child(
                             div()
                                 .flex()
                                 .justify_center()
                                 .text_color(rgb(COLORS.text))
+                                .text_sm()
                                 .child(item.label.clone()),
-                        )
-                        .child(
-                            div()
-                                .w(px(SIDE_SLOT_WIDTH))
-                                .flex()
-                                .justify_center()
-                                .text_color(rgb(COLORS.shortcut))
-                                .child(item.shortcut.clone()),
                         ),
                 )
         })
