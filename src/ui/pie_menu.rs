@@ -15,23 +15,48 @@ pub struct MenuItem {
     pub label: SharedString,
 }
 
+pub struct PieMenu {
+    pub name: SharedString,
+    pub items: Vec<MenuItem>,
+}
+
 pub struct PieMenuView {
     pub x: f32,
     pub y: f32,
-    pub items: Vec<MenuItem>,
+    pub menus: Vec<PieMenu>,
+    pub current_menu: usize,
     pub visible: bool,
     cursor_angle: f32,
 }
 
 impl PieMenuView {
-    pub fn new(items: Vec<MenuItem>) -> Self {
+    pub fn new(menus: Vec<PieMenu>) -> Self {
         Self {
             x: 0.0,
             y: 0.0,
-            items,
+            menus,
+            current_menu: 0,
             visible: false,
             cursor_angle: -PI / 2.0,
         }
+    }
+
+    fn handle_scroll(
+        &mut self,
+        event: &ScrollWheelEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.menus.is_empty() {
+            return;
+        }
+        let dy: f32 = event.delta.pixel_delta(px(20.0)).y.into();
+        if dy > 0.0 {
+            self.current_menu = (self.current_menu + 1) % self.menus.len();
+        } else if dy < 0.0 {
+            self.current_menu = (self.current_menu + self.menus.len() - 1) % self.menus.len();
+        }
+        cx.notify();
     }
 
     pub fn open_at(&mut self, x: f32, y: f32, cx: &mut Context<Self>) {
@@ -70,27 +95,37 @@ impl Render for PieMenuView {
         let colors = Colors::DEFAULT;
         let center_x = self.x;
         let center_y = self.y;
-        let selected = selected_sector(self.cursor_angle, self.items.len());
+        let menu = &self.menus[self.current_menu];
+        let selected = selected_sector(self.cursor_angle, menu.items.len());
+        let menu_name = menu.name.clone();
+        let items = menu.items.clone();
 
         div()
             .size_full()
             .relative()
             .on_mouse_move(cx.listener(Self::handle_mouse_move))
+            .on_scroll_wheel(cx.listener(Self::handle_scroll))
             .child(render_ring(center_x, center_y, &colors))
             .child(render_highlight_arc(
                 center_x,
                 center_y,
                 self.cursor_angle,
-                self.items.len(),
+                items.len(),
                 &colors,
             ))
             .children(render_menu_items(
-                center_x,
-                center_y,
-                &self.items,
-                selected,
-                &colors,
+                center_x, center_y, &items, selected, &colors,
             ))
+            .child(
+                div()
+                    .absolute()
+                    .top(px(24.0))
+                    .right(px(32.0))
+                    .font_family("ReciaDisplay")
+                    .text_size(px(72.0))
+                    .text_color(rgb(colors.text))
+                    .child(menu_name),
+            )
     }
 }
 

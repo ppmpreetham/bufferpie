@@ -3,26 +3,49 @@ pub mod math;
 pub mod pie_menu;
 
 use gpui::*;
-use pie_menu::{MenuItem, PieMenuView};
+use pie_menu::{MenuItem, PieMenu, PieMenuView};
 
-fn default_items() -> Vec<MenuItem> {
+fn default_menus() -> Vec<PieMenu> {
     vec![
-        MenuItem {
-            label: "Copy".into(),
+        PieMenu {
+            name: "Edit".into(),
+            items: vec![
+                MenuItem {
+                    label: "Copy".into(),
+                },
+                MenuItem {
+                    label: "Paste".into(),
+                },
+                MenuItem {
+                    label: "Cut".into(),
+                },
+                MenuItem {
+                    label: "Undo".into(),
+                },
+            ],
         },
-        MenuItem {
-            label: "Paste".into(),
-        },
-        MenuItem {
-            label: "Cut".into(),
-        },
-        MenuItem {
-            label: "Undo".into(),
+        PieMenu {
+            name: "Window".into(),
+            items: vec![
+                MenuItem {
+                    label: "Minimize".into(),
+                },
+                MenuItem {
+                    label: "Maximize".into(),
+                },
+                MenuItem {
+                    label: "Close".into(),
+                },
+            ],
         },
     ]
 }
 
 pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>> {
+    cx.text_system()
+        .add_fonts(vec![include_bytes!("public/ReciaDisplay.ttf").into()])
+        .expect("failed to load custom font");
+
     cx.open_window(
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::new(
@@ -39,6 +62,6 @@ pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>>
             kind: WindowKind::PopUp,
             ..Default::default()
         },
-        |_, cx| cx.new(|_| PieMenuView::new(default_items())),
+        |_, cx| cx.new(|_| PieMenuView::new(default_menus())),
     )
 }
