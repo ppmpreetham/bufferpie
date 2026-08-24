@@ -5,10 +5,8 @@ pub mod pie_menu;
 use gpui::*;
 use pie_menu::{MenuItem, PieMenuView};
 
-pub fn open_pie_menu(cx: &mut App, x: f32, y: f32) -> Result<WindowHandle<PieMenuView>> {
-    let bounds = Bounds::maximized(None, cx);
-
-    let items = vec![
+fn default_items() -> Vec<MenuItem> {
+    vec![
         MenuItem {
             label: "Copy".into(),
         },
@@ -21,12 +19,19 @@ pub fn open_pie_menu(cx: &mut App, x: f32, y: f32) -> Result<WindowHandle<PieMen
         MenuItem {
             label: "Undo".into(),
         },
-    ];
+    ]
+}
 
+pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>> {
     cx.open_window(
         WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            window_bounds: Some(WindowBounds::Windowed(Bounds::new(
+                point(px(0.0), px(0.0)),
+                size(px(0.0), px(0.0)),
+            ))),
             titlebar: None,
+            focus: false,
+            show: true,
             is_movable: false,
             is_resizable: false,
             window_background: WindowBackgroundAppearance::Transparent,
@@ -34,6 +39,6 @@ pub fn open_pie_menu(cx: &mut App, x: f32, y: f32) -> Result<WindowHandle<PieMen
             kind: WindowKind::PopUp,
             ..Default::default()
         },
-        move |_, cx| cx.new(|_| PieMenuView::new(x, y, items)),
+        |_, cx| cx.new(|_| PieMenuView::new(default_items())),
     )
 }

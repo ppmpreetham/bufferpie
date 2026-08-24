@@ -1,5 +1,5 @@
 use crate::key::{self, MenuAction};
-use crate::ui::{open_pie_menu, pie_menu::PieMenuView};
+use crate::ui::create_pie_menu_window;
 
 use futures::StreamExt;
 use futures::channel::mpsc::unbounded;
@@ -7,42 +7,24 @@ use gpui::*;
 use std::sync::Arc;
 
 pub fn run(cx: &mut App) {
-    // dummy keepalive node
-    let _keepalive = cx.open_window(
-        WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(Bounds::from_corners(
-                Point::default(),
-                Point::default(),
-            ))),
-            show: false,
-            ..Default::default()
-        },
-        |_, cx| cx.new(|_| gpui::Empty),
-    );
-
     let state = Arc::new(key::MenuState::default());
     let (tx, mut rx) = unbounded();
 
     key::spawn_input_monitor(state, tx);
+    let window = create_pie_menu_window(cx).expect("failed to start");
 
     cx.spawn(async move |cx| {
-        let mut active_window: Option<WindowHandle<PieMenuView>> = None;
-
         while let Some(action) = rx.next().await {
-            let _ = cx.update(|app| match action {
+            let _ = window.update(cx, |view, window, cx| match action {
                 MenuAction::Open { x, y } => {
-                    if active_window.is_none()
-                        && let Ok(window) = open_pie_menu(app, x, y)
-                    {
-                        active_window = Some(window);
-                    }
+                    let bounds = Bounds::maximized(None, cx);
+                    window.resize(bounds.size);
+                    view.open_at(x as f32, y as f32, cx);
+                    window.activate_window();
                 }
                 MenuAction::Close => {
-                    if let Some(window) = active_window.take() {
-                        let _ = window.update(app, |_, window, _| {
-                            window.remove_window();
-                        });
-                    }
+                    view.close(cx);
+                    window.resize(size(px(0.0), px(0.0)));
                 }
             });
         }

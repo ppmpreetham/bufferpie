@@ -3,7 +3,6 @@ pub struct Colors {
     pub surface: u32,
     pub surface_hover: u32,
     pub text: u32,
-    pub shortcut: u32,
 }
 
 impl Colors {
@@ -12,6 +11,5 @@ impl Colors {
         surface: 0x181818,
         surface_hover: 0x545454,
         text: 0xcdd6f4,
-        shortcut: 0x94a3b8,
     };
 }
