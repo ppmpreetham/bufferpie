@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+mod actions;
 mod app;
 mod key;
 mod startup;
