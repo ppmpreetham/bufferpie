@@ -1,5 +1,6 @@
 use gpui::*;
 use std::f32::consts::PI;
+use std::time::Duration;
 
 use super::config::Colors;
 use super::math::{normalize_angle, selected_sector};
@@ -168,11 +169,10 @@ fn render_menu_items(
             let item_x = center_x + ITEM_ORBIT_RADIUS * angle.cos();
             let item_y = center_y + ITEM_ORBIT_RADIUS * angle.sin();
             let is_selected = i == selected;
+            let item_id = ElementId::from(("pie-item", i));
 
             div()
                 .absolute()
-                .left(px(item_x))
-                .top(px(item_y))
                 .w(px(0.0))
                 .h(px(0.0))
                 .flex()
@@ -195,6 +195,15 @@ fn render_menu_items(
                         .justify_center()
                         .text_color(rgb(colors.text))
                         .child(item.label.clone()),
+                )
+                .with_animation(
+                    item_id,
+                    Animation::new(Duration::from_millis(100)).with_easing(ease_out_quint()),
+                    move |this, delta| {
+                        let x = center_x + delta * (item_x - center_x);
+                        let y = center_y + delta * (item_y - center_y);
+                        this.left(px(x)).top(px(y))
+                    },
                 )
         })
         .collect()
