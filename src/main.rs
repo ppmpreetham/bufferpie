@@ -1,3 +1,4 @@
+pub mod key;
 
 use gpui::{
     App, Application, Bounds, Context, SharedString, Window, WindowBounds, WindowOptions, div,
