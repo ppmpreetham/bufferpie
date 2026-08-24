@@ -4093,6 +4093,7 @@ dependencies = [
  "auto-launch",
  "clap",
  "device_query",
+ "futures",
  "gpui",
  "rdev",
 ]

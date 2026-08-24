@@ -1,8 +1,8 @@
+use futures::channel::mpsc::UnboundedSender;
 use rdev::{EventType, Key, listen};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, AtomicI32, Ordering::Relaxed},
-    mpsc::Sender,
 };
 
 pub enum MenuAction {
@@ -25,16 +25,12 @@ pub struct MenuState {
     position: Position,
 }
 
-pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: Sender<MenuAction>) {
+pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuAction>) {
     std::thread::spawn(move || {
-        let trigger = Arc::new(trigger);
-
         let _ = listen(move |event| match event.event_type {
             EventType::KeyPress(Key::CapsLock) => handle_press(&state),
-            EventType::KeyRelease(Key::CapsLock) => handle_release(&state, trigger.clone()),
-            EventType::MouseMove { x, y } => {
-                handle_move(&state, x as i32, y as i32, trigger.clone())
-            }
+            EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
+            EventType::MouseMove { x, y } => handle_move(&state, x as i32, y as i32, &trigger),
             _ => {}
         });
     });
@@ -44,18 +40,18 @@ fn handle_press(state: &MenuState) {
     state.is_key_held.store(true, Relaxed);
 }
 
-fn handle_release(state: &MenuState, trigger: Arc<Sender<MenuAction>>) {
+fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     state.is_key_held.store(false, Relaxed);
 
     if state.is_menu_active.swap(false, Relaxed) {
         state.position.x.store(0, Relaxed);
         state.position.y.store(0, Relaxed);
 
-        let _ = trigger.send(MenuAction::Close);
+        let _ = trigger.unbounded_send(MenuAction::Close);
     }
 }
 
-fn handle_move(state: &MenuState, x: i32, y: i32, trigger: Arc<Sender<MenuAction>>) {
+fn handle_move(state: &MenuState, x: i32, y: i32, trigger: &UnboundedSender<MenuAction>) {
     if !state.is_key_held.load(Relaxed) || state.is_menu_active.load(Relaxed) {
         return;
     }
@@ -71,7 +67,7 @@ fn handle_move(state: &MenuState, x: i32, y: i32, trigger: Arc<Sender<MenuAction
 
     if has_crossed_threshold(state, x, y) {
         state.is_menu_active.store(true, Relaxed);
-        let _ = trigger.send(MenuAction::Open { x: cx, y: cy });
+        let _ = trigger.unbounded_send(MenuAction::Open { x: cx, y: cy });
     }
 }
 
