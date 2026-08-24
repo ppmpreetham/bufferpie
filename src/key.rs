@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 pub enum MenuAction {
-    Open { x: i32, y: i32 },
+    Open { x: f32, y: f32 },
     Close,
 }
 
@@ -30,7 +30,7 @@ pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuA
         let _ = listen(move |event| match event.event_type {
             EventType::KeyPress(Key::CapsLock) => handle_press(&state),
             EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
-            EventType::MouseMove { x, y } => handle_move(&state, x as i32, y as i32, &trigger),
+            EventType::MouseMove { x, y } => handle_move(&state, x, y, &trigger),
             _ => {}
         });
     });
@@ -51,7 +51,7 @@ fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     }
 }
 
-fn handle_move(state: &MenuState, x: i32, y: i32, trigger: &UnboundedSender<MenuAction>) {
+fn handle_move(state: &MenuState, x: f64, y: f64, trigger: &UnboundedSender<MenuAction>) {
     if !state.is_key_held.load(Relaxed) || state.is_menu_active.load(Relaxed) {
         return;
     }
@@ -60,20 +60,23 @@ fn handle_move(state: &MenuState, x: i32, y: i32, trigger: &UnboundedSender<Menu
     let mut cy = state.position.y.load(Relaxed);
 
     if cx == 0 && cy == 0 {
-        state.position.x.store(x, Relaxed);
-        state.position.y.store(y, Relaxed);
-        cx = x;
-        cy = y;
+        cx = x as i32;
+        cy = y as i32;
+        state.position.x.store(cx, Relaxed);
+        state.position.y.store(cy, Relaxed);
     }
 
     if has_crossed_threshold(state, x, y) {
         state.is_menu_active.store(true, Relaxed);
-        let _ = trigger.unbounded_send(MenuAction::Open { x: cx, y: cy });
+        let _ = trigger.unbounded_send(MenuAction::Open {
+            x: cx as f32,
+            y: cy as f32,
+        });
     }
 }
 
-fn has_crossed_threshold(state: &MenuState, x: i32, y: i32) -> bool {
-    let dx = x - state.position.x.load(Relaxed);
-    let dy = y - state.position.y.load(Relaxed);
+fn has_crossed_threshold(state: &MenuState, x: f64, y: f64) -> bool {
+    let dx = (x as i32) - state.position.x.load(Relaxed);
+    let dy = (y as i32) - state.position.y.load(Relaxed);
     (dx * dx) + (dy * dy) > MOTION_THRESHOLD
 }

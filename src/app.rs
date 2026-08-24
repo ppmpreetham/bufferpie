@@ -1,7 +1,6 @@
-use crate::{
-    key::{self, MenuAction},
-    ui,
-};
+use crate::key::{self, MenuAction};
+use crate::ui::{open_pie_menu, pie_menu::PieMenuView};
+
 use futures::StreamExt;
 use futures::channel::mpsc::unbounded;
 use gpui::*;
@@ -14,13 +13,13 @@ pub fn run(cx: &mut App) {
     key::spawn_input_monitor(state, tx);
 
     cx.spawn(async move |cx| {
-        let mut active_window: Option<WindowHandle<ui::PieMenuView>> = None;
+        let mut active_window: Option<WindowHandle<PieMenuView>> = None;
 
         while let Some(action) = rx.next().await {
             let _ = cx.update(|app| match action {
                 MenuAction::Open { x, y } => {
                     if active_window.is_none()
-                        && let Ok(window) = ui::open_pie_menu(app, x, y)
+                        && let Ok(window) = open_pie_menu(app, x, y)
                     {
                         active_window = Some(window);
                     }
