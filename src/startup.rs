@@ -1,6 +1,6 @@
 use auto_launch::{AutoLaunch, WindowsEnableMode};
 
-const APP_ID: &str = "PieMenuDaemon";
+const APP_ID: &str = "cyber_pie_daemon";
 const STARTUP_ARGS: &[&str] = &["--minimized"];
 
 pub fn register_startup() {
