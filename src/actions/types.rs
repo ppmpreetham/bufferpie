@@ -1,12 +1,12 @@
+use rdev::Key;
 use std::path::PathBuf;
-
 pub enum Action {
     /// Executes a cmd
     Command(String),
     /// Executes a sequence of keystrokes
     Macro {
         /// The keys to press
-        keys: Vec<String>,
+        keys: Vec<Key>,
         /// Delay in milliseconds between key strikes if needed
         delay: u32,
     },
