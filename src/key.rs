@@ -56,13 +56,14 @@ fn handle_move(state: &MenuState, x: i32, y: i32, trigger: &UnboundedSender<Menu
         return;
     }
 
-    let cx = state.position.x.load(Relaxed);
-    let cy = state.position.y.load(Relaxed);
+    let mut cx = state.position.x.load(Relaxed);
+    let mut cy = state.position.y.load(Relaxed);
 
     if cx == 0 && cy == 0 {
         state.position.x.store(x, Relaxed);
         state.position.y.store(y, Relaxed);
-        return;
+        cx = x;
+        cy = y;
     }
 
     if has_crossed_threshold(state, x, y) {
