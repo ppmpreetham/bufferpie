@@ -1,0 +1,11 @@
+[package]
+name = "pinews"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.6", features = ["derive"] }
+device_query = "4.0.1"
+gpui = "0.2.2"
+rdev = "0.5.3"
