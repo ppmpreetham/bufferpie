@@ -3,6 +3,7 @@ use auto_launch::{AutoLaunch, WindowsEnableMode};
 const APP_ID: &str = "cyber_pie_daemon";
 const STARTUP_ARGS: &[&str] = &["--minimized"];
 
+#[allow(dead_code)]
 pub fn register_startup() {
     let Ok(exe) = std::env::current_exe() else {
         return;
