@@ -1,10 +1,12 @@
+use super::config::AppConfig;
+use super::settings::window::open_settings_window;
+use crate::actions::types::{Action, CellType};
 use gpui::*;
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 use std::time::Duration;
 
-use crate::actions::types::Action;
-
-use super::config::Colors;
+use super::colors::Colors;
 use super::math::{normalize_angle, selected_sector};
 
 const RING_RADIUS: f32 = 20.0;
@@ -12,12 +14,14 @@ const RING_THICKNESS: f32 = 8.0;
 const ITEM_ORBIT_RADIUS: f32 = 160.0;
 const SIDE_SLOT_WIDTH: f32 = 32.0;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Item {
     pub label: SharedString,
-    // pub action: Option<Action>,
+    pub action: Option<Action>,
+    pub celltype: CellType,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PieMenu {
     pub name: SharedString,
     pub items: Vec<Item>,
@@ -29,18 +33,22 @@ pub struct PieMenuView {
     pub menus: Vec<PieMenu>,
     pub current_menu: usize,
     pub visible: bool,
+    pub settings_visible: bool,
     cursor_angle: f32,
+    pub config: Entity<AppConfig>,
 }
 
 impl PieMenuView {
-    pub fn new(menus: Vec<PieMenu>) -> Self {
+    pub fn new(menus: Vec<PieMenu>, config: Entity<AppConfig>) -> Self {
         Self {
             x: 0.0,
             y: 0.0,
             menus,
             current_menu: 0,
             visible: false,
+            settings_visible: false,
             cursor_angle: -PI / 2.0,
+            config,
         }
     }
 
@@ -87,15 +95,49 @@ impl PieMenuView {
         self.cursor_angle = normalize_angle(dy.atan2(dx));
         cx.notify();
     }
+
+    pub fn show_settings_button(&mut self, cx: &mut Context<Self>) {
+        self.settings_visible = true;
+        cx.notify();
+    }
+
+    pub fn hide_settings_button(&mut self, cx: &mut Context<Self>) {
+        self.settings_visible = false;
+        cx.notify();
+    }
 }
 
 impl Render for PieMenuView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = self.config.read(cx).colors.clone();
+
+        let settings_btn = if self.settings_visible {
+            div()
+                .id("settings-btn")
+                .absolute()
+                .bottom(px(16.0))
+                .right(px(16.0))
+                .size(px(48.0))
+                .rounded_full()
+                .bg(rgb(colors.surface))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(rgb(colors.text))
+                .child("⚙")
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, _, cx| open_settings_window(this.config.clone(), cx)),
+                )
+                .into_any_element()
+        } else {
+            div().into_any_element()
+        };
+
         if !self.visible {
-            return div().size(px(0.0));
+            return div().size_full().child(settings_btn).into_any_element();
         }
 
-        let colors = Colors::DEFAULT;
         let center_x = self.x;
         let center_y = self.y;
         let menu = &self.menus[self.current_menu];
@@ -129,6 +171,8 @@ impl Render for PieMenuView {
                     .text_color(rgb(colors.text))
                     .child(menu_name),
             )
+            .child(settings_btn)
+            .into_any_element()
     }
 }
 
@@ -229,6 +273,8 @@ fn render_menu_items(
                         } else {
                             colors.surface
                         }))
+                        .border_1()
+                        .border_color(rgb(colors.surface))
                         .w(px(SIDE_SLOT_WIDTH * 4.0))
                         .justify_center()
                         .text_color(rgb(colors.text))

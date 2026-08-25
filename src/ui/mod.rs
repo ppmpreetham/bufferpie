@@ -1,9 +1,12 @@
+pub mod colors;
 pub mod config;
 pub mod math;
 pub mod pie_menu;
-
+pub mod settings;
 use gpui::*;
 use pie_menu::{Item, PieMenu, PieMenuView};
+
+use crate::{actions::types::CellType, ui::settings::load};
 
 fn default_menus() -> Vec<PieMenu> {
     vec![
@@ -12,15 +15,23 @@ fn default_menus() -> Vec<PieMenu> {
             items: vec![
                 Item {
                     label: "Copy".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
                 Item {
                     label: "Paste".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
                 Item {
                     label: "Cut".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
                 Item {
                     label: "Undo".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
             ],
         },
@@ -29,12 +40,18 @@ fn default_menus() -> Vec<PieMenu> {
             items: vec![
                 Item {
                     label: "Minimize".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
                 Item {
                     label: "Maximize".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
                 Item {
                     label: "Close".into(),
+                    action: None,
+                    celltype: CellType::Normal,
                 },
             ],
         },
@@ -62,6 +79,9 @@ pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>>
             kind: WindowKind::PopUp,
             ..Default::default()
         },
-        |_, cx| cx.new(|_| PieMenuView::new(default_menus())),
+        |_, cx| {
+            let config = cx.new(|_| load());
+            cx.new(|_| PieMenuView::new(default_menus(), config))
+        },
     )
 }

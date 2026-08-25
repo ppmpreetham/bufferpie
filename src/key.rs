@@ -8,6 +8,8 @@ use std::sync::{
 pub enum MenuAction {
     Open { x: f32, y: f32 },
     Close,
+    ShowSettingsButton,
+    HideSettingsButton,
 }
 
 const MOTION_THRESHOLD: i32 = 64;
@@ -28,20 +30,23 @@ pub struct MenuState {
 pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuAction>) {
     std::thread::spawn(move || {
         let _ = listen(move |event| match event.event_type {
-            EventType::KeyPress(Key::CapsLock) => handle_press(&state),
+            EventType::KeyPress(Key::CapsLock) => handle_press(&state, &trigger),
             EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
+
             EventType::MouseMove { x, y } => handle_move(&state, x, y, &trigger),
             _ => {}
         });
     });
 }
 
-fn handle_press(state: &MenuState) {
+fn handle_press(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     state.is_key_held.store(true, Relaxed);
+    let _ = trigger.unbounded_send(MenuAction::ShowSettingsButton);
 }
 
 fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     state.is_key_held.store(false, Relaxed);
+    let _ = trigger.unbounded_send(MenuAction::HideSettingsButton);
 
     if state.is_menu_active.swap(false, Relaxed) {
         state.position.x.store(0, Relaxed);
