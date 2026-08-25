@@ -9,11 +9,9 @@ mod key;
 mod startup;
 mod ui;
 
-use gpui::Application;
-
 fn main() {
     #[cfg(not(debug_assertions))]
     startup::register_startup();
 
-    Application::new().run(app::run);
+    gpui_platform::application().run(app::run);
 }
