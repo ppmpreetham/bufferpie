@@ -1,15 +1,27 @@
-pub struct Colors {
-    pub arc: u32,
-    pub surface: u32,
-    pub surface_hover: u32,
-    pub text: u32,
+use serde::{Deserialize, Serialize};
+
+use super::colors::Colors;
+use super::pie_menu::PieMenu;
+use crate::ui::settings::ConfigMode;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AppConfig {
+    pub mode: ConfigMode,
+    pub menus: Vec<PieMenu>,
+    pub manual_json: String,
+    pub colors: Colors,
 }
 
-impl Colors {
-    pub const DEFAULT: Self = Self {
-        arc: 0x4772b3,
-        surface: 0x181818,
-        surface_hover: 0x545454,
-        text: 0xcdd6f4,
-    };
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            mode: ConfigMode::Auto,
+            menus: Vec::new(),
+            manual_json: String::new(),
+            colors: Colors::DEFAULT,
+        }
+    }
 }
+
+pub struct ConfigGlobal(pub AppConfig);
+impl gpui::Global for ConfigGlobal {}
