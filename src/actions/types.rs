@@ -1,10 +1,11 @@
 use rdev::Key;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Action {
     /// Executes a cmd
-    Command(String),
+    Command(gpui::SharedString),
     /// Executes a sequence of keystrokes
     Macro {
         /// The keys to press
@@ -16,7 +17,8 @@ pub enum Action {
     App { path: PathBuf },
 }
 
-pub enum Cell {
+#[derive(Clone, Serialize, Deserialize)]
+pub enum CellType {
     /// Holdable Cells take in the scroll wheel into account (up and down)
     Holdable,
     /// These are normal clicks, and won't trigger holdable behavior

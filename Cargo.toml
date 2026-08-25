@@ -8,8 +8,17 @@ anyhow = "1.0.104"
 auto-launch = "0.6.0"
 clap = { version = "4.6.6", features = ["derive"] }
 device_query = "4.0.1"
+dirs = "6.0.0"
 futures = "0.3.34"
-gpui = "0.2.2"
+
 open = "5.4.2"
-rdev = "0.5.3"
+rdev = { version = "0.5.3", features = ["serialize", "serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_derive = "1.0.229"
+serde_json = "1.0.151"
 tray-icon = "0.24.2"
+
+gpui = { git = "https://github.com/zed-industries/zed" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
+gpui-component = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }

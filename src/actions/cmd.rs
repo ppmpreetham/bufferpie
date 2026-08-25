@@ -2,7 +2,7 @@ use std::process::{Command, Stdio};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-
+#[allow(dead_code)]
 pub fn run_command(command: &str) {
     let mut parts = command.trim().split_whitespace();
     let Some(program) = parts.next() else {

@@ -2,6 +2,7 @@ use rdev::{EventType, Key, SimulateError, simulate};
 use std::thread::sleep;
 use std::time::Duration;
 
+#[allow(dead_code)]
 pub fn run_macro(keys: &[Key], delay: u32) {
     let delay_duration = Duration::from_millis(delay as u64);
 
