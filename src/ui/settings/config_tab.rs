@@ -1,15 +1,12 @@
 use crate::ui::config::AppConfig;
 
-use super::ConfigMode;
-use super::auto::AutoEditor;
-use super::manual::ManualEditor;
-use super::save;
+use super::{ConfigMode, manual::ManualEditor, menus::MenusEditor, save};
 use gpui::*;
 use gpui_component::tab::{Tab, TabBar};
 
 pub struct ConfigTab {
     pub mode: ConfigMode,
-    pub auto: Entity<AutoEditor>,
+    pub auto: Entity<MenusEditor>,
     pub manual: Entity<ManualEditor>,
     pub config: Entity<AppConfig>,
 }
@@ -22,6 +19,7 @@ impl Render for ConfigTab {
             .flex()
             .flex_col()
             .gap_2()
+            .size_full()
             .child(
                 div().p_2().child(
                     TabBar::new("config-mode")

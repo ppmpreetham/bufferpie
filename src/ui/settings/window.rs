@@ -1,7 +1,7 @@
-use super::appearence::AppearanceTab;
-use super::auto::AutoEditor;
+use super::appearance::AppearanceTab;
 use super::config_tab::ConfigTab;
 use super::manual::ManualEditor;
+use super::menus::MenusEditor;
 use super::viewer::SettingsView;
 use crate::ui::config::AppConfig;
 use gpui::*;
@@ -29,7 +29,7 @@ pub fn open_settings_window(config: Entity<AppConfig>, cx: &mut App) {
             ..Default::default()
         },
         |window, cx| {
-            let auto = cx.new(|_| AutoEditor::new(config_entity.clone()));
+            let auto = cx.new(|_| MenusEditor::new(config_entity.clone()));
             let manual = cx.new(|cx| ManualEditor::new(window, cx, config_entity.clone()));
 
             let mode = config_entity.read(cx).mode.clone();

@@ -1,8 +1,5 @@
 use super::save;
-use crate::ui::{
-    config::AppConfig,
-    pie_menu::{Item, PieMenu},
-};
+use crate::ui::{config::AppConfig, pie_menu::PieMenu};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::input::{InputEvent, Textarea, TextareaState};
@@ -16,11 +13,12 @@ pub struct ManualEditor {
 
 impl ManualEditor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>, config: Entity<AppConfig>) -> Self {
+        let initial = serde_json::to_string_pretty(&config.read(cx).menus).unwrap_or_default();
         let editor = cx.new(|cx| {
             TextareaState::new(window, cx)
-                .rows(10)
-                .placeholder("[ ... ]")
-                .default_value(&config.read(cx).manual_json)
+                .rows(24)
+                .placeholder("[{ \"name\": \"MENU\", \"items\": [] }]")
+                .default_value(&initial)
         });
         let sub = cx.subscribe(&editor, |this, _, ev, cx| {
             if matches!(ev, InputEvent::Change) {
@@ -37,19 +35,11 @@ impl ManualEditor {
 
     fn try_apply(&mut self, cx: &mut Context<Self>) {
         let text = self.editor.read(cx).value().to_string();
-        match serde_json::from_str::<Vec<Item>>(&text) {
-            Ok(items) => {
+        match serde_json::from_str::<Vec<PieMenu>>(&text) {
+            Ok(menus) => {
                 self.error = None;
                 self.config.update(cx, |c, cx| {
-                    c.manual_json = text;
-                    if c.menus.is_empty() {
-                        c.menus.push(PieMenu {
-                            name: "MENU".into(),
-                            items,
-                        });
-                    } else {
-                        c.menus[0].items = items;
-                    }
+                    c.menus = menus;
                     let _ = save(c);
                     cx.notify();
                 });
@@ -67,7 +57,8 @@ impl Render for ManualEditor {
             .flex_col()
             .gap_2()
             .p_4()
-            .child(Textarea::new(&self.editor))
+            .size_full()
+            .child(Textarea::new(&self.editor).h_full())
             .when_some(self.error.clone(), |d, err| {
                 d.child(div().text_color(rgb(0xf38ba8)).child(err))
             })

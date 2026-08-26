@@ -1,4 +1,4 @@
-use super::appearence::AppearanceTab;
+use super::appearance::AppearanceTab;
 use super::config_tab::ConfigTab;
 use gpui::*;
 use gpui_component::{

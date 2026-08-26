@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-pub mod appearence;
-pub mod auto;
+pub mod appearance;
 pub mod config_tab;
-pub mod creators;
 pub mod manual;
+pub mod menus;
 pub mod viewer;
 pub mod window;
 
