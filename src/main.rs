@@ -13,5 +13,7 @@ fn main() {
     #[cfg(not(debug_assertions))]
     startup::register_startup();
 
-    gpui_platform::application().run(app::run);
+    gpui_platform::application()
+        .with_assets(ui::assets::Assets)
+        .run(app::run);
 }
