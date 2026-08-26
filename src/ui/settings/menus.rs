@@ -6,8 +6,9 @@ use crate::actions::{
     cmd::run_command,
     types::{Action, CellType},
 };
+use crate::ui::assets::icon_for;
 use crate::ui::config::AppConfig;
-use crate::ui::pie_menu::{Item, PieMenu, icon_for};
+use crate::ui::pie_menu::{Item, PieMenu};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::{
@@ -16,6 +17,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputState},
+    switch::Switch,
     tab::{Tab, TabBar},
     v_flex,
 };
@@ -44,6 +46,7 @@ impl NodeKind {
 struct NodeForm {
     menu_ix: usize,
     kind: NodeKind,
+    show_terminal: bool,
     label: Entity<InputState>,
     detail: Entity<InputState>,
 }
@@ -113,6 +116,7 @@ impl MenusEditor {
         self.form = Some(NodeForm {
             menu_ix,
             kind: NodeKind::Command,
+            show_terminal: false,
             label: input("Label"),
             detail: input("e.g. code ."),
         });
@@ -135,7 +139,7 @@ impl MenusEditor {
         if let Some(form) = self.form.as_ref() {
             let detail = form.detail.read(cx).value().to_string();
             match form.kind {
-                NodeKind::Command => run_command(&detail),
+                NodeKind::Command => run_command(&detail, form.show_terminal),
                 NodeKind::App => open_app(&detail),
                 NodeKind::Macro => {}
             }
@@ -176,7 +180,10 @@ impl MenusEditor {
             }
         };
         let action = match form.kind {
-            NodeKind::Command => Action::Command(detail.into()),
+            NodeKind::Command => Action::Command {
+                cmd: detail.into(),
+                show_terminal: form.show_terminal,
+            },
             NodeKind::App => Action::App {
                 path: PathBuf::from(&detail),
             },
@@ -200,7 +207,8 @@ impl MenusEditor {
         let Some(form) = self.form.as_ref() else {
             return div().into_any_element();
         };
-        let (kind, label, detail) = (form.kind, &form.label, &form.detail);
+        let (kind, label, detail, show_terminal) =
+            (form.kind, &form.label, &form.detail, form.show_terminal);
         let has_detail = !detail.read(cx).value().is_empty();
 
         v_flex()
@@ -224,6 +232,22 @@ impl MenusEditor {
                 )
             })
             .when(kind != NodeKind::Macro, |d| d.child(Input::new(detail)))
+            .when(kind == NodeKind::Command, |d| {
+                let this = cx.entity();
+                d.child(
+                    Switch::new(("show-terminal", menu_ix))
+                        .checked(show_terminal)
+                        .label("Show terminal")
+                        .on_click(move |checked, _, cx| {
+                            this.update(cx, |this, cx| {
+                                if let Some(form) = this.form.as_mut() {
+                                    form.show_terminal = *checked;
+                                }
+                                cx.notify();
+                            });
+                        }),
+                )
+            })
             .child(
                 h_flex()
                     .justify_end()
@@ -292,7 +316,11 @@ impl Render for MenusEditor {
                             h_flex()
                                 .items_center()
                                 .gap_2()
-                                .child(img(icon_for(node.action.as_ref())).size(px(16.0)))
+                                .child(
+                                    img(icon_for(node.action.as_ref()))
+                                        .size(px(16.0))
+                                        .text_color(cx.theme().foreground),
+                                )
                                 .child(node.label.clone()),
                         )
                         .child(

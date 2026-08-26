@@ -45,7 +45,11 @@ impl Render for SettingsView {
                         SidebarMenu::new()
                             .child(
                                 SidebarMenuItem::new("Appearance")
-                                    .icon(Icon::empty().path("logos/appearence.svg"))
+                                    .icon(
+                                        Icon::empty()
+                                            .path("logos/appearence.svg")
+                                            .text_color(cx.theme().foreground),
+                                    )
                                     .active(tab == SidebarTab::Appearance)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.tab = SidebarTab::Appearance;
@@ -54,7 +58,11 @@ impl Render for SettingsView {
                             )
                             .child(
                                 SidebarMenuItem::new("Config")
-                                    .icon(Icon::empty().path("logos/config.svg"))
+                                    .icon(
+                                        Icon::empty()
+                                            .path("logos/config.svg")
+                                            .text_color(cx.theme().foreground),
+                                    )
                                     .active(tab == SidebarTab::Config)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.tab = SidebarTab::Config;

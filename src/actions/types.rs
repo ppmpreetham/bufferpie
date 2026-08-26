@@ -5,8 +5,13 @@ use std::path::PathBuf;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Action {
-    /// Executes a cmd
-    Command(gpui::SharedString),
+    /// executes a cmd
+    Command {
+        /// the command line to run
+        cmd: gpui::SharedString,
+        /// keeps the spawned terminal window visible
+        show_terminal: bool,
+    },
     /// Executes a sequence of keystrokes
     Macro {
         /// The keys to press
@@ -29,7 +34,7 @@ pub enum CellType {
 /// runs the behavior bound to an action
 pub fn execute(action: &Action) {
     match action {
-        Action::Command(cmd) => run_command(cmd),
+        Action::Command { cmd, show_terminal } => run_command(cmd, *show_terminal),
         Action::Macro { keys, delay } => run_keystrokes(keys, *delay),
         Action::App { path } => open_app(path.to_string_lossy().as_ref()),
     }

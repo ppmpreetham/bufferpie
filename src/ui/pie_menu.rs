@@ -1,3 +1,4 @@
+use super::assets::icon_for;
 use super::colors::Colors;
 use super::config::AppConfig;
 use super::math::{normalize_angle, selected_sector};
@@ -26,15 +27,6 @@ pub struct Item {
 pub struct PieMenu {
     pub name: SharedString,
     pub items: Vec<Item>,
-}
-
-/// logo asset shown left of an item's label
-pub fn icon_for(action: Option<&Action>) -> &'static str {
-    match action {
-        Some(Action::App { .. }) => "logos/app.svg",
-        Some(Action::Macro { .. }) => "logos/keyboard.svg",
-        Some(Action::Command(_)) | None => "logos/command.svg",
-    }
 }
 
 pub struct PieMenuView {
@@ -171,7 +163,11 @@ impl Render for PieMenuView {
                 .items_center()
                 .justify_center()
                 .text_color(rgb(colors.text))
-                .child(img("logos/settings.svg").size(px(20.0)))
+                .child(
+                    img("logos/settings.svg")
+                        .size(px(20.0))
+                        .text_color(rgb(colors.text)),
+                )
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(|this, _, _, cx| {
@@ -341,7 +337,11 @@ fn render_menu_items(
                         .w(px(SIDE_SLOT_WIDTH * 4.0))
                         .justify_center()
                         .text_color(rgb(colors.text))
-                        .child(img(icon_for(item.action.as_ref())).size(px(16.0)))
+                        .child(
+                            img(icon_for(item.action.as_ref()))
+                                .size(px(16.0))
+                                .text_color(rgb(colors.text)),
+                        )
                         .child(item.label.clone()),
                 )
                 .with_animation(
