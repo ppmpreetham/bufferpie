@@ -8,7 +8,9 @@ pub struct ManualEditor {
     pub config: Entity<AppConfig>,
     pub editor: Entity<TextareaState>,
     pub error: Option<SharedString>,
-    _subscription: Subscription,
+    /// serialized menus waiting to be pushed into the editor (auto tab changed)
+    pending: Option<String>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl ManualEditor {
@@ -20,16 +22,41 @@ impl ManualEditor {
                 .placeholder("[{ \"name\": \"MENU\", \"items\": [] }]")
                 .default_value(&initial)
         });
-        let sub = cx.subscribe(&editor, |this, _, ev, cx| {
-            if matches!(ev, InputEvent::Change) {
-                this.try_apply(cx);
-            }
-        });
+        let subscriptions = vec![
+            cx.subscribe(&editor, |this, _, ev, cx| {
+                if matches!(ev, InputEvent::Change) {
+                    this.try_apply(cx);
+                }
+            }),
+            cx.observe(&config, |this, _, cx| this.queue_sync(cx)),
+        ];
         Self {
             config,
             editor,
             error: None,
-            _subscription: sub,
+            pending: None,
+            _subscriptions: subscriptions,
+        }
+    }
+
+    /// schedules an editor refresh when the auto tab edited the menus
+    fn queue_sync(&mut self, cx: &mut Context<Self>) {
+        let json = serde_json::to_string_pretty(&self.config.read(cx).menus).unwrap_or_default();
+        if self.editor.read(cx).value() != json && self.pending.is_none() {
+            self.pending = Some(json);
+            cx.notify();
+        }
+    }
+
+    fn flush_pending(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(json) = self.pending.take() {
+            cx.spawn_in(window, async move |this, cx| {
+                this.update_in(cx, |this, window, cx| {
+                    this.editor
+                        .update(cx, |state, cx| state.set_value(json, window, cx));
+                })
+            })
+            .detach();
         }
     }
 
@@ -51,7 +78,9 @@ impl ManualEditor {
 }
 
 impl Render for ManualEditor {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.flush_pending(window, cx);
+
         div()
             .flex()
             .flex_col()
