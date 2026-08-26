@@ -1,3 +1,4 @@
+use super::{app_open::open_app, cmd::run_command, keystrokes::run_keystrokes};
 use rdev::Key;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -23,4 +24,13 @@ pub enum CellType {
     Holdable,
     /// These are normal clicks, and won't trigger holdable behavior
     Normal,
+}
+
+/// runs the behavior bound to an action
+pub fn execute(action: &Action) {
+    match action {
+        Action::Command(cmd) => run_command(cmd),
+        Action::Macro { keys, delay } => run_keystrokes(keys, *delay),
+        Action::App { path } => open_app(path.to_string_lossy().as_ref()),
+    }
 }
