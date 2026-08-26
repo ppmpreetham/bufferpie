@@ -6,8 +6,13 @@ use std::sync::{
 };
 
 pub enum MenuAction {
-    Open { x: f32, y: f32 },
+    Open {
+        x: f32,
+        y: f32,
+    },
     Close,
+    /// closes without running the selected action
+    Cancel,
     ShowSettingsButton,
     HideSettingsButton,
 }
@@ -32,6 +37,7 @@ pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuA
         let _ = listen(move |event| match event.event_type {
             EventType::KeyPress(Key::CapsLock) => handle_press(&state, &trigger),
             EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
+            EventType::KeyPress(Key::Escape) => handle_escape(&state, &trigger),
 
             EventType::MouseMove { x, y } => handle_move(&state, x, y, &trigger),
             _ => {}
@@ -53,6 +59,16 @@ fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
         state.position.y.store(0, Relaxed);
 
         let _ = trigger.unbounded_send(MenuAction::Close);
+    }
+}
+
+/// esc dismisses the open menu without firing its hovered action
+fn handle_escape(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
+    if state.is_menu_active.swap(false, Relaxed) {
+        state.position.x.store(0, Relaxed);
+        state.position.y.store(0, Relaxed);
+
+        let _ = trigger.unbounded_send(MenuAction::Cancel);
     }
 }
 

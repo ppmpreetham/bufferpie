@@ -31,6 +31,13 @@ pub fn run(cx: &mut App) {
                 }
                 MenuAction::Close => {
                     menu_open = false;
+                    view.finish(cx);
+                    if !caps_held {
+                        window.resize(size(px(0.0), px(0.0)));
+                    }
+                }
+                MenuAction::Cancel => {
+                    menu_open = false;
                     view.close(cx);
                     if !caps_held {
                         window.resize(size(px(0.0), px(0.0)));

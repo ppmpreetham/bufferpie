@@ -1,13 +1,12 @@
+use super::colors::Colors;
 use super::config::AppConfig;
+use super::math::{normalize_angle, selected_sector};
 use super::settings::window::open_settings_window;
-use crate::actions::types::{Action, CellType};
+use crate::actions::types::{Action, CellType, execute};
 use gpui::*;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 use std::time::Duration;
-
-use super::colors::Colors;
-use super::math::{normalize_angle, selected_sector};
 
 const RING_RADIUS: f32 = 20.0;
 const RING_THICKNESS: f32 = 8.0;
@@ -30,7 +29,6 @@ pub struct PieMenu {
 pub struct PieMenuView {
     pub x: f32,
     pub y: f32,
-    pub menus: Vec<PieMenu>,
     pub current_menu: usize,
     pub visible: bool,
     pub settings_visible: bool,
@@ -39,11 +37,10 @@ pub struct PieMenuView {
 }
 
 impl PieMenuView {
-    pub fn new(menus: Vec<PieMenu>, config: Entity<AppConfig>) -> Self {
+    pub fn new(config: Entity<AppConfig>) -> Self {
         Self {
             x: 0.0,
             y: 0.0,
-            menus,
             current_menu: 0,
             visible: false,
             settings_visible: false,
@@ -52,20 +49,57 @@ impl PieMenuView {
         }
     }
 
+    /// runs the hovered item's action and closes, used on caps lock release
+    pub fn finish(&mut self, cx: &mut Context<Self>) {
+        if self.visible
+            && let Some(action) = self
+                .config
+                .read(cx)
+                .menus
+                .get(self.current_menu)
+                .and_then(|menu| {
+                    menu.items
+                        .get(selected_sector(self.cursor_angle, menu.items.len()))
+                })
+                .and_then(|item| item.action.clone())
+        {
+            // keep the ui thread free while macros strike keys
+            std::thread::spawn(move || execute(&action));
+        }
+        self.close(cx);
+    }
+
+    /// runs a clicked item's action and closes
+    fn pick(&mut self, ix: usize, cx: &mut Context<Self>) {
+        if self.visible
+            && let Some(action) = self
+                .config
+                .read(cx)
+                .menus
+                .get(self.current_menu)
+                .and_then(|menu| menu.items.get(ix))
+                .and_then(|item| item.action.clone())
+        {
+            std::thread::spawn(move || execute(&action));
+        }
+        self.close(cx);
+    }
+
     fn handle_scroll(
         &mut self,
         event: &ScrollWheelEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.menus.is_empty() {
+        let count = self.config.read(cx).menus.len();
+        if count == 0 {
             return;
         }
         let dy: f32 = event.delta.pixel_delta(px(20.0)).y.into();
         if dy > 0.0 {
-            self.current_menu = (self.current_menu + 1) % self.menus.len();
+            self.current_menu = (self.current_menu + 1) % count;
         } else if dy < 0.0 {
-            self.current_menu = (self.current_menu + self.menus.len() - 1) % self.menus.len();
+            self.current_menu = (self.current_menu + count - 1) % count;
         }
         cx.notify();
     }
@@ -140,7 +174,10 @@ impl Render for PieMenuView {
 
         let center_x = self.x;
         let center_y = self.y;
-        let menu = &self.menus[self.current_menu];
+        self.current_menu = self
+            .current_menu
+            .min(self.config.read(cx).menus.len().saturating_sub(1));
+        let menu = &self.config.read(cx).menus[self.current_menu];
         let selected = selected_sector(self.cursor_angle, menu.items.len());
         let menu_name = menu.name.clone();
         let items = menu.items.clone();
@@ -159,7 +196,12 @@ impl Render for PieMenuView {
                 &colors,
             ))
             .children(render_menu_items(
-                center_x, center_y, &items, selected, &colors,
+                center_x,
+                center_y,
+                &items,
+                selected,
+                &colors,
+                &cx.entity(),
             ))
             .child(
                 div()
@@ -236,6 +278,7 @@ fn render_menu_items(
     items: &[Item],
     selected: usize,
     colors: &Colors,
+    view: &Entity<PieMenuView>,
 ) -> Vec<impl IntoElement> {
     if items.is_empty() {
         return Vec::new();
@@ -252,6 +295,7 @@ fn render_menu_items(
             let item_y = center_y + ITEM_ORBIT_RADIUS * angle.sin();
             let is_selected = i == selected;
             let item_id = ElementId::from(("pie-item", i));
+            let pick_view = view.clone();
 
             div()
                 .absolute()
@@ -260,6 +304,9 @@ fn render_menu_items(
                 .flex()
                 .items_center()
                 .justify_center()
+                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                    pick_view.update(cx, |view, cx| view.pick(i, cx))
+                })
                 .child(
                     div()
                         .flex()
