@@ -4,9 +4,11 @@ use super::save;
 use crate::actions::{
     app_open::open_app,
     cmd::run_command,
+    keystrokes::{key_label, run_keystrokes},
     types::{Action, CellType},
 };
-use crate::ui::assets::icon_for;
+use crate::key;
+use crate::ui::assets::{NodeIcon, node_icon};
 use crate::ui::config::AppConfig;
 use crate::ui::pie_menu::{Item, PieMenu};
 use gpui::prelude::FluentBuilder;
@@ -47,8 +49,11 @@ struct NodeForm {
     menu_ix: usize,
     kind: NodeKind,
     show_terminal: bool,
+    recording: bool,
+    keys: Vec<rdev::Key>,
     label: Entity<InputState>,
     detail: Entity<InputState>,
+    delay: Entity<InputState>,
 }
 
 pub struct MenusEditor {
@@ -117,31 +122,58 @@ impl MenusEditor {
             menu_ix,
             kind: NodeKind::Command,
             show_terminal: false,
+            recording: false,
+            keys: Vec::new(),
             label: input("Label"),
             detail: input("e.g. code ."),
+            delay: input("delay ms"),
         });
         cx.notify();
     }
 
     fn set_kind(&mut self, ix: &usize, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(form) = self.form.as_mut() {
+            if form.recording {
+                form.keys = key::stop_recording();
+                form.recording = false;
+            }
             form.kind = NodeKind::ALL[*ix];
         }
         cx.notify();
     }
 
     fn close_form(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        key::stop_recording();
         self.form = None;
         cx.notify();
     }
 
+    fn toggle_recording(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some(form) = self.form.as_mut() else {
+            return;
+        };
+        form.recording = !form.recording;
+        form.keys = if form.recording {
+            key::start_recording();
+            Vec::new()
+        } else {
+            key::stop_recording()
+        };
+        cx.notify();
+    }
+
     fn test_node(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        if let Some(form) = self.form.as_ref() {
-            let detail = form.detail.read(cx).value().to_string();
-            match form.kind {
-                NodeKind::Command => run_command(&detail, form.show_terminal),
-                NodeKind::App => open_app(&detail),
-                NodeKind::Macro => {}
+        let Some(form) = self.form.as_ref() else {
+            return;
+        };
+        let detail = form.detail.read(cx).value().to_string();
+        match form.kind {
+            NodeKind::Command => run_command(&detail, form.show_terminal),
+            NodeKind::App => open_app(&detail),
+            NodeKind::Macro => {
+                // replay the captured keys so they can be checked before saving
+                let delay = form.delay.read(cx).value().trim().parse().unwrap_or(50);
+                run_keystrokes(&form.keys, delay);
             }
         }
     }
@@ -168,8 +200,9 @@ impl MenusEditor {
         .detach();
     }
 
-    fn create_node(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+    fn create_node(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         let Some(form) = self.form.take() else { return };
+        key::stop_recording();
         let detail = form.detail.read(cx).value().to_string();
         let label = {
             let label = form.label.read(cx).value().to_string();
@@ -179,17 +212,31 @@ impl MenusEditor {
                 label
             }
         };
-        let action = match form.kind {
-            NodeKind::Command => Action::Command {
-                cmd: detail.into(),
-                show_terminal: form.show_terminal,
-            },
-            NodeKind::App => Action::App {
-                path: PathBuf::from(&detail),
-            },
-            // TODO: keystroke recording
-            NodeKind::Macro => return,
+        let (action, exe) = match form.kind {
+            NodeKind::Command => (
+                Action::Command {
+                    cmd: detail.into(),
+                    show_terminal: form.show_terminal,
+                },
+                None,
+            ),
+            NodeKind::App => (
+                Action::App {
+                    path: PathBuf::from(&detail),
+                },
+                Some(PathBuf::from(&detail)),
+            ),
+            // TODO: keystroke recording polish
+            NodeKind::Macro if form.recording || form.keys.is_empty() => return,
+            NodeKind::Macro => (
+                Action::Macro {
+                    keys: form.keys,
+                    delay: form.delay.read(cx).value().trim().parse().unwrap_or(50),
+                },
+                None,
+            ),
         };
+
         let menu_ix = form.menu_ix;
         self.persist(
             |c| {
@@ -201,17 +248,37 @@ impl MenusEditor {
             },
             cx,
         );
+
+        // pull the exe icon in the background, repaint once it lands
+        if let Some(exe) = exe {
+            let extract = cx.background_spawn(async move { crate::ui::assets::extract_icon(&exe) });
+            cx.spawn_in(window, async move |this, cx| {
+                extract.await;
+                let _ = this.update_in(cx, |_, _, _| {});
+            })
+            .detach();
+        }
     }
 
     fn render_form(&mut self, menu_ix: usize, cx: &mut Context<Self>) -> AnyElement {
         let Some(form) = self.form.as_ref() else {
             return div().into_any_element();
         };
-        let (kind, label, detail, show_terminal) =
-            (form.kind, &form.label, &form.detail, form.show_terminal);
+        let (kind, label, detail, show_terminal, recording, captured) = (
+            form.kind,
+            &form.label,
+            &form.detail,
+            form.show_terminal,
+            form.recording,
+            &form.keys,
+        );
         let has_detail = !detail.read(cx).value().is_empty();
+        let invalid = match kind {
+            NodeKind::Macro => recording || captured.is_empty(),
+            _ => !has_detail,
+        };
 
-        v_flex()
+        let form_ui = v_flex()
             .gap_2()
             .py_1()
             .child(
@@ -225,10 +292,36 @@ impl MenusEditor {
             .child(Input::new(label))
             .when(kind == NodeKind::Macro, |d| {
                 d.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child("keystroke recording coming soon"),
+                    v_flex()
+                        .gap_2()
+                        .child(
+                            h_flex()
+                                .gap_2()
+                                .child(if recording {
+                                    Button::new(("stop-recording", menu_ix))
+                                        .danger()
+                                        .label("Stop recording")
+                                        .on_click(cx.listener(Self::toggle_recording))
+                                } else {
+                                    Button::new(("start-recording", menu_ix))
+                                        .outline()
+                                        .label("Record keys")
+                                        .on_click(cx.listener(Self::toggle_recording))
+                                })
+                                .child(Input::new(&form.delay).w(px(96.0))),
+                        )
+                        .child(h_flex().flex_wrap().gap_1().children(
+                            key::recorded().into_iter().map(|k| {
+                                div()
+                                    .px_2()
+                                    .py_0p5()
+                                    .rounded_sm()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .text_color(cx.theme().foreground)
+                                    .child(key_label(k))
+                            }),
+                        )),
                 )
             })
             .when(kind != NodeKind::Macro, |d| d.child(Input::new(detail)))
@@ -264,7 +357,7 @@ impl MenusEditor {
                         Button::new(("test", menu_ix))
                             .outline()
                             .label("Test")
-                            .disabled(kind == NodeKind::Macro || !has_detail)
+                            .disabled(invalid)
                             .on_click(cx.listener(Self::test_node)),
                     )
                     .child(
@@ -277,11 +370,11 @@ impl MenusEditor {
                         Button::new(("create", menu_ix))
                             .primary()
                             .label("Create")
-                            .disabled(kind == NodeKind::Macro || !has_detail)
+                            .disabled(invalid)
                             .on_click(cx.listener(Self::create_node)),
                     ),
-            )
-            .into_any_element()
+            );
+        form_ui.into_any_element()
     }
 }
 
@@ -316,11 +409,16 @@ impl Render for MenusEditor {
                             h_flex()
                                 .items_center()
                                 .gap_2()
-                                .child(
-                                    img(icon_for(node.action.as_ref()))
+                                .child(match node_icon(node.action.as_ref()) {
+                                    NodeIcon::Svg(path) => svg()
+                                        .path(path)
                                         .size(px(16.0))
-                                        .text_color(cx.theme().foreground),
-                                )
+                                        .text_color(cx.theme().foreground)
+                                        .into_any_element(),
+                                    NodeIcon::File(path) => {
+                                        img(path).size(px(16.0)).into_any_element()
+                                    }
+                                })
                                 .child(node.label.clone()),
                         )
                         .child(

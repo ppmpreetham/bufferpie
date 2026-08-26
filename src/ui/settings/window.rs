@@ -6,6 +6,19 @@ use super::viewer::SettingsView;
 use crate::ui::config::AppConfig;
 use gpui::*;
 
+/// handle of the open settings window, used to repaint live recordings
+#[derive(Default)]
+struct SettingsWindow(Option<AnyWindowHandle>);
+
+impl Global for SettingsWindow {}
+
+/// nudges the settings window so it repaints (e.g. while recording keys)
+pub fn refresh_settings(cx: &mut App) {
+    if let Some(handle) = cx.try_global::<SettingsWindow>().and_then(|g| g.0) {
+        let _ = handle.update(cx, |_, window, _| window.refresh());
+    }
+}
+
 pub fn open_settings_window(config: Entity<AppConfig>, cx: &mut App) {
     if let Some(existing) = cx
         .windows()
@@ -17,7 +30,7 @@ pub fn open_settings_window(config: Entity<AppConfig>, cx: &mut App) {
     }
 
     let config_entity = config.clone();
-    let _ = cx.open_window(
+    let opened = cx.open_window(
         WindowOptions {
             window_bounds: Some(WindowBounds::centered(size(px(720.0), px(480.0)), cx)),
             titlebar: Some(TitlebarOptions {
@@ -45,4 +58,8 @@ pub fn open_settings_window(config: Entity<AppConfig>, cx: &mut App) {
             cx.new(|cx| gpui_component::Root::new(view, window, cx))
         },
     );
+
+    if let Ok(handle) = opened {
+        cx.set_global(SettingsWindow(Some(handle.into())));
+    }
 }

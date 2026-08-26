@@ -2,13 +2,12 @@ use crate::actions::types::Action;
 use gpui::{AssetSource, Result, SharedString};
 use parking_lot::Mutex;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// serves the embedded logo svgs and cached app icons,
-/// falling back to gpui component assets
+/// serves the embedded logo svgs, falling back to gpui component assets
 pub struct Assets;
 
 impl AssetSource for Assets {
@@ -32,9 +31,6 @@ impl AssetSource for Assets {
             "logos/cancel.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "public/logos/cancel.svg"
             )))),
-            p if p.starts_with("app-icons/") => {
-                Ok(std::fs::read(cache_dir().join(p)).map(Cow::Owned).ok())
-            }
             _ => gpui_component_assets::Assets.load(path),
         }
     }
@@ -44,47 +40,58 @@ impl AssetSource for Assets {
     }
 }
 
-/// logo asset shown left of an item's label
-pub fn icon_for(action: Option<&Action>) -> String {
+/// the logo to show for a node, either an embedded svg or an extracted app icon
+pub enum NodeIcon {
+    Svg(&'static str),
+    /// relative asset path of an extracted exe icon
+    File(String),
+}
+
+/// logo shown left of an item's label
+pub fn node_icon(action: Option<&Action>) -> NodeIcon {
     match action {
         Some(Action::App { path }) => {
-            let hash = hash_path(path);
-            request_icon(hash, path.clone());
-            format!("app-icons/{hash:x}.png")
+            let file = format!("app-icons/{:x}.png", hash_path(path));
+            if icon_file(&file).exists() {
+                NodeIcon::File(file)
+            } else {
+                // not extracted yet, fall back to the generic glyph
+                extract_icon(path);
+                NodeIcon::Svg("logos/command.svg")
+            }
         }
-        Some(Action::Macro { .. }) => "logos/keyboard.svg".into(),
-        Some(Action::Command { .. }) | None => "logos/command.svg".into(),
+        Some(Action::Macro { .. }) => NodeIcon::Svg("logos/keyboard.svg"),
+        Some(Action::Command { .. }) | None => NodeIcon::Svg("logos/command.svg"),
     }
 }
 
-/// executables waiting for their icon to be extracted
-fn pending() -> &'static Mutex<HashMap<u64, PathBuf>> {
-    static PENDING: OnceLock<Mutex<HashMap<u64, PathBuf>>> = OnceLock::new();
+/// executables already queued for extraction
+fn pending() -> &'static Mutex<HashSet<u64>> {
+    static PENDING: OnceLock<Mutex<HashSet<u64>>> = OnceLock::new();
     PENDING.get_or_init(Mutex::default)
 }
 
-/// schedules one background icon extraction per executable
-fn request_icon(hash: u64, exe: PathBuf) {
-    let mut queue = pending().lock();
-    if queue.contains_key(&hash) {
-        return;
-    }
-    queue.insert(hash, exe.clone());
-
-    let out = cache_dir().join(format!("app-icons/{hash:x}.png"));
-    std::thread::spawn(move || extract_icon(&exe, &out));
+fn icon_file(asset: &str) -> PathBuf {
+    cache_dir().join(asset)
 }
 
-/// pulls the associated icon out of an exe with a headless powershell one-liner
-fn extract_icon(exe: &Path, out: &Path) {
-    let (Some(exe), Some(out_str)) = (exe.to_str(), out.to_str()) else {
+/// pulls the associated icon out of an exe with a headless powershell one-liner,
+/// deduplicated per executable
+pub fn extract_icon(exe: &Path) {
+    let hash = hash_path(exe);
+    if !pending().lock().insert(hash) {
         return;
-    };
-    let _ = std::fs::create_dir_all(out.parent().unwrap_or(Path::new(".")));
+    }
+
+    let out = icon_file(&format!("app-icons/{hash:x}.png"));
+    let Some(exe) = exe.to_str() else { return };
+    let Some(out) = out.to_str() else { return };
+    let _ = std::fs::create_dir_all(cache_dir().join("app-icons"));
+
     let script = format!(
         "Add-Type -AssemblyName System.Drawing;\
          [System.Drawing.Icon]::ExtractAssociatedIcon('{exe}')\
-         .ToBitmap().Save('{out_str}',[System.Drawing.Imaging.ImageFormat]::Png)"
+         .ToBitmap().Save('{out}',[System.Drawing.Imaging.ImageFormat]::Png)"
     );
 
     let mut cmd = std::process::Command::new("powershell");

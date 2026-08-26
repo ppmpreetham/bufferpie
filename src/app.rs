@@ -56,6 +56,10 @@ pub fn run(cx: &mut App) {
                         window.resize(size(px(0.0), px(0.0)));
                     }
                 }
+                // recorded keys changed, repaint the macro form
+                MenuAction::KeysChanged => {
+                    crate::ui::settings::window::refresh_settings(cx);
+                }
             });
         }
     })

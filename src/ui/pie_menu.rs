@@ -1,4 +1,4 @@
-use super::assets::icon_for;
+use super::assets::{NodeIcon, node_icon};
 use super::colors::Colors;
 use super::config::AppConfig;
 use super::math::{normalize_angle, selected_sector};
@@ -164,7 +164,8 @@ impl Render for PieMenuView {
                 .justify_center()
                 .text_color(rgb(colors.text))
                 .child(
-                    img("logos/settings.svg")
+                    svg()
+                        .path("logos/settings.svg")
                         .size(px(20.0))
                         .text_color(rgb(colors.text)),
                 )
@@ -337,11 +338,14 @@ fn render_menu_items(
                         .w(px(SIDE_SLOT_WIDTH * 4.0))
                         .justify_center()
                         .text_color(rgb(colors.text))
-                        .child(
-                            img(icon_for(item.action.as_ref()))
+                        .children([match node_icon(item.action.as_ref()) {
+                            NodeIcon::Svg(path) => svg()
+                                .path(path)
                                 .size(px(16.0))
-                                .text_color(rgb(colors.text)),
-                        )
+                                .text_color(rgb(colors.text))
+                                .into_any_element(),
+                            NodeIcon::File(path) => img(path).size(px(16.0)).into_any_element(),
+                        }])
                         .child(item.label.clone()),
                 )
                 .with_animation(
