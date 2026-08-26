@@ -202,6 +202,11 @@ impl Render for PieMenuView {
             .relative()
             .on_mouse_move(cx.listener(Self::handle_mouse_move))
             .on_scroll_wheel(cx.listener(Self::handle_scroll))
+            // clicking anywhere outside the items dismisses the menu
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| this.close(cx)),
+            )
             .child(render_ring(center_x, center_y, &colors))
             // the arc spins uselessly on a single item, only draw it for 2+
             .children((items.len() > 1).then(|| {

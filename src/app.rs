@@ -16,50 +16,35 @@ pub fn run(cx: &mut App) {
 
     key::spawn_input_monitor(state.clone(), tx);
     let window = create_pie_menu_window(cx, state).expect("failed to start");
-    let mut caps_held = false;
-    let mut menu_open = false;
 
     cx.spawn(async move |cx| {
         while let Some(action) = rx.next().await {
             let _ = window.update(cx, |view, window, cx| match action {
                 MenuAction::Open { x, y } => {
-                    menu_open = true;
-                    let bounds = Bounds::maximized(None, cx);
-                    window.resize(bounds.size);
                     view.open_at(x, y, cx);
                     window.activate_window();
                 }
-                MenuAction::Close => {
-                    menu_open = false;
-                    view.finish(cx);
-                    if !caps_held {
-                        window.resize(size(px(0.0), px(0.0)));
-                    }
-                }
-                MenuAction::Cancel => {
-                    menu_open = false;
-                    view.close(cx);
-                    if !caps_held {
-                        window.resize(size(px(0.0), px(0.0)));
-                    }
-                }
-                MenuAction::ShowSettingsButton => {
-                    caps_held = true;
-                    let bounds = Bounds::maximized(None, cx);
-                    window.resize(bounds.size);
-                    view.show_settings_button(cx);
-                }
-                MenuAction::HideSettingsButton => {
-                    caps_held = false;
-                    view.hide_settings_button(cx);
-                    if !menu_open {
-                        window.resize(size(px(0.0), px(0.0)));
-                    }
-                }
+                // releasing caps lock fires the hovered item before closing
+                MenuAction::Close => view.finish(cx),
+                MenuAction::Cancel => view.close(cx),
+                MenuAction::ShowSettingsButton => view.show_settings_button(cx),
+                MenuAction::HideSettingsButton => view.hide_settings_button(cx),
                 // recorded keys changed, repaint the macro form
                 MenuAction::KeysChanged => {
                     crate::ui::settings::window::refresh_settings(cx);
                 }
+            });
+
+            // the overlay size is derived from real view state every message,
+            // so a missed event can never leave an invisible fullscreen layer
+            let _ = window.update(cx, |view, window, cx| {
+                let active = view.visible || view.settings_visible;
+                let target = if active {
+                    Bounds::maximized(None, cx).size
+                } else {
+                    size(px(0.0), px(0.0))
+                };
+                window.resize(target);
             });
         }
     })
