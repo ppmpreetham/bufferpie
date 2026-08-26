@@ -3,9 +3,11 @@ use super::config::AppConfig;
 use super::math::{normalize_angle, selected_sector};
 use super::settings::window::open_settings_window;
 use crate::actions::types::{Action, CellType, execute};
+use crate::key::MenuState;
 use gpui::*;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
+use std::sync::Arc;
 use std::time::Duration;
 
 const RING_RADIUS: f32 = 20.0;
@@ -26,6 +28,15 @@ pub struct PieMenu {
     pub items: Vec<Item>,
 }
 
+/// logo asset shown left of an item's label
+pub fn icon_for(action: Option<&Action>) -> &'static str {
+    match action {
+        Some(Action::App { .. }) => "logos/app.svg",
+        Some(Action::Macro { .. }) => "logos/keyboard.svg",
+        Some(Action::Command(_)) | None => "logos/command.svg",
+    }
+}
+
 pub struct PieMenuView {
     pub x: f32,
     pub y: f32,
@@ -34,10 +45,11 @@ pub struct PieMenuView {
     pub settings_visible: bool,
     cursor_angle: f32,
     pub config: Entity<AppConfig>,
+    state: Arc<MenuState>,
 }
 
 impl PieMenuView {
-    pub fn new(config: Entity<AppConfig>) -> Self {
+    pub fn new(config: Entity<AppConfig>, state: Arc<MenuState>) -> Self {
         Self {
             x: 0.0,
             y: 0.0,
@@ -46,6 +58,7 @@ impl PieMenuView {
             settings_visible: false,
             cursor_angle: -PI / 2.0,
             config,
+            state,
         }
     }
 
@@ -158,10 +171,15 @@ impl Render for PieMenuView {
                 .items_center()
                 .justify_center()
                 .text_color(rgb(colors.text))
-                .child("⚙")
+                .child(img("logos/settings.svg").size(px(20.0)))
                 .on_mouse_down(
                     MouseButton::Left,
-                    cx.listener(|this, _, _, cx| open_settings_window(this.config.clone(), cx)),
+                    cx.listener(|this, _, _, cx| {
+                        // opening settings dismisses the pie like esc would
+                        this.state.deactivate();
+                        open_settings_window(this.config.clone(), cx);
+                        this.close(cx);
+                    }),
                 )
                 .into_any_element()
         } else {
@@ -188,13 +206,10 @@ impl Render for PieMenuView {
             .on_mouse_move(cx.listener(Self::handle_mouse_move))
             .on_scroll_wheel(cx.listener(Self::handle_scroll))
             .child(render_ring(center_x, center_y, &colors))
-            .child(render_highlight_arc(
-                center_x,
-                center_y,
-                self.cursor_angle,
-                items.len(),
-                &colors,
-            ))
+            // the arc spins uselessly on a single item, only draw it for 2+
+            .children((items.len() > 1).then(|| {
+                render_highlight_arc(center_x, center_y, self.cursor_angle, items.len(), &colors)
+            }))
             .children(render_menu_items(
                 center_x,
                 center_y,
@@ -312,6 +327,7 @@ fn render_menu_items(
                         .flex()
                         .flex_row()
                         .items_center()
+                        .gap_2()
                         .px_3()
                         .py_1p5()
                         .rounded_md()
@@ -325,6 +341,7 @@ fn render_menu_items(
                         .w(px(SIDE_SLOT_WIDTH * 4.0))
                         .justify_center()
                         .text_color(rgb(colors.text))
+                        .child(img(icon_for(item.action.as_ref())).size(px(16.0)))
                         .child(item.label.clone()),
                 )
                 .with_animation(

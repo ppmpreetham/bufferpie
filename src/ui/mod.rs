@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod colors;
 pub mod config;
 pub mod math;
@@ -5,10 +6,17 @@ pub mod pie_menu;
 pub mod settings;
 
 use gpui::*;
+use key::MenuState;
 use pie_menu::PieMenuView;
 use settings::load;
+use std::sync::Arc;
 
-pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>> {
+use crate::key;
+
+pub fn create_pie_menu_window(
+    cx: &mut App,
+    state: Arc<MenuState>,
+) -> Result<WindowHandle<PieMenuView>> {
     cx.text_system()
         .add_fonts(vec![include_bytes!("public/ReciaDisplay.ttf").into()])
         .expect("failed to load custom font");
@@ -31,7 +39,7 @@ pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>>
         },
         |_, cx| {
             let config = cx.new(|_| load());
-            cx.new(|_| PieMenuView::new(config))
+            cx.new(|_| PieMenuView::new(config, state))
         },
     )
 }

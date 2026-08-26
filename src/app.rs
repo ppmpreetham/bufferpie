@@ -14,8 +14,8 @@ pub fn run(cx: &mut App) {
     let state = Arc::new(key::MenuState::default());
     let (tx, mut rx) = unbounded();
 
-    key::spawn_input_monitor(state, tx);
-    let window = create_pie_menu_window(cx).expect("failed to start");
+    key::spawn_input_monitor(state.clone(), tx);
+    let window = create_pie_menu_window(cx, state).expect("failed to start");
     let mut caps_held = false;
     let mut menu_open = false;
 

@@ -32,6 +32,15 @@ pub struct MenuState {
     position: Position,
 }
 
+impl MenuState {
+    /// stops tracking the open menu so a later release won't fire its action
+    pub fn deactivate(&self) {
+        self.is_menu_active.store(false, Relaxed);
+        self.position.x.store(0, Relaxed);
+        self.position.y.store(0, Relaxed);
+    }
+}
+
 pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuAction>) {
     std::thread::spawn(move || {
         let _ = listen(move |event| match event.event_type {
@@ -55,8 +64,7 @@ fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     let _ = trigger.unbounded_send(MenuAction::HideSettingsButton);
 
     if state.is_menu_active.swap(false, Relaxed) {
-        state.position.x.store(0, Relaxed);
-        state.position.y.store(0, Relaxed);
+        state.deactivate();
 
         let _ = trigger.unbounded_send(MenuAction::Close);
     }
@@ -65,8 +73,7 @@ fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
 /// esc dismisses the open menu without firing its hovered action
 fn handle_escape(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     if state.is_menu_active.swap(false, Relaxed) {
-        state.position.x.store(0, Relaxed);
-        state.position.y.store(0, Relaxed);
+        state.deactivate();
 
         let _ = trigger.unbounded_send(MenuAction::Cancel);
     }
