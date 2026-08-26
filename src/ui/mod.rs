@@ -3,60 +3,10 @@ pub mod config;
 pub mod math;
 pub mod pie_menu;
 pub mod settings;
+
 use gpui::*;
-use pie_menu::{Item, PieMenu, PieMenuView};
-
-use crate::{actions::types::CellType, ui::settings::load};
-
-fn default_menus() -> Vec<PieMenu> {
-    vec![
-        PieMenu {
-            name: "EDIT".into(),
-            items: vec![
-                Item {
-                    label: "Copy".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-                Item {
-                    label: "Paste".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-                Item {
-                    label: "Cut".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-                Item {
-                    label: "Undo".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-            ],
-        },
-        PieMenu {
-            name: "WINDOW".into(),
-            items: vec![
-                Item {
-                    label: "Minimize".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-                Item {
-                    label: "Maximize".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-                Item {
-                    label: "Close".into(),
-                    action: None,
-                    celltype: CellType::Normal,
-                },
-            ],
-        },
-    ]
-}
+use pie_menu::PieMenuView;
+use settings::load;
 
 pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>> {
     cx.text_system()
@@ -81,7 +31,7 @@ pub fn create_pie_menu_window(cx: &mut App) -> Result<WindowHandle<PieMenuView>>
         },
         |_, cx| {
             let config = cx.new(|_| load());
-            cx.new(|_| PieMenuView::new(default_menus(), config))
+            cx.new(|_| PieMenuView::new(config))
         },
     )
 }
