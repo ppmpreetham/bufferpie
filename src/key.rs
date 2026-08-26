@@ -72,6 +72,9 @@ fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
 
 /// esc dismisses the open menu without firing its hovered action
 fn handle_escape(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
+    // a still-held caps must not reopen the menu on the next mouse move
+    state.is_key_held.store(false, Relaxed);
+
     if state.is_menu_active.swap(false, Relaxed) {
         state.deactivate();
 
