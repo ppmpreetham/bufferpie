@@ -2,7 +2,7 @@ use super::appearance::AppearanceTab;
 use super::config_tab::ConfigTab;
 use gpui::*;
 use gpui_component::{
-    ActiveTheme, IconName,
+    ActiveTheme, Icon,
     sidebar::{Sidebar, SidebarGroup, SidebarMenu, SidebarMenuItem},
 };
 
@@ -45,7 +45,7 @@ impl Render for SettingsView {
                         SidebarMenu::new()
                             .child(
                                 SidebarMenuItem::new("Appearance")
-                                    .icon(IconName::Palette)
+                                    .icon(Icon::empty().path("logos/appearence.svg"))
                                     .active(tab == SidebarTab::Appearance)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.tab = SidebarTab::Appearance;
@@ -54,7 +54,7 @@ impl Render for SettingsView {
                             )
                             .child(
                                 SidebarMenuItem::new("Config")
-                                    .icon(IconName::Settings)
+                                    .icon(Icon::empty().path("logos/config.svg"))
                                     .active(tab == SidebarTab::Config)
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.tab = SidebarTab::Config;

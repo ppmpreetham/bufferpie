@@ -24,6 +24,7 @@ impl Render for ConfigTab {
                 div().p_2().child(
                     TabBar::new("config-mode")
                         .segmented()
+                        .self_start()
                         .selected_index(if is_auto { 0 } else { 1 })
                         .child(Tab::new().label("Auto"))
                         .child(Tab::new().label("Manual"))

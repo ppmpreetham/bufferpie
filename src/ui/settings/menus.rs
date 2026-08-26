@@ -7,7 +7,7 @@ use crate::actions::{
     types::{Action, CellType},
 };
 use crate::ui::config::AppConfig;
-use crate::ui::pie_menu::{Item, PieMenu};
+use crate::ui::pie_menu::{Item, PieMenu, icon_for};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::{
@@ -36,14 +36,6 @@ impl NodeKind {
             Self::Command => "Command",
             Self::App => "App",
             Self::Macro => "Macro",
-        }
-    }
-
-    fn icon(self) -> IconName {
-        match self {
-            Self::Command => IconName::SquareTerminal,
-            Self::App => IconName::ExternalLink,
-            Self::Macro => IconName::Asterisk,
         }
     }
 }
@@ -217,6 +209,7 @@ impl MenusEditor {
             .child(
                 TabBar::new(("node-kind", menu_ix))
                     .segmented()
+                    .self_start()
                     .selected_index(kind as usize)
                     .children(NodeKind::ALL.map(|k| Tab::new().label(k.label())))
                     .on_click(cx.listener(Self::set_kind)),
@@ -287,12 +280,6 @@ impl Render for MenusEditor {
                 );
 
             for (ni, node) in menu.items.iter().enumerate() {
-                let icon = match node.action {
-                    Some(Action::Command(_)) => NodeKind::Command.icon(),
-                    Some(Action::App { .. }) => NodeKind::App.icon(),
-                    Some(Action::Macro { .. }) => NodeKind::Macro.icon(),
-                    None => IconName::Dash,
-                };
                 item = item.child(
                     h_flex()
                         .id(("node-row", ni))
@@ -305,7 +292,7 @@ impl Render for MenusEditor {
                             h_flex()
                                 .items_center()
                                 .gap_2()
-                                .child(Icon::new(icon))
+                                .child(img(icon_for(node.action.as_ref())).size(px(16.0)))
                                 .child(node.label.clone()),
                         )
                         .child(
