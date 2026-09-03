@@ -2,11 +2,11 @@ use super::save;
 use crate::ui::{config::AppConfig, pie_menu::PieMenu};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
-use gpui_component::input::{InputEvent, Textarea, TextareaState};
+use gpui_component::input::{Editor, EditorState, InputEvent};
 
 pub struct ManualEditor {
     pub config: Entity<AppConfig>,
-    pub editor: Entity<TextareaState>,
+    pub editor: Entity<EditorState>,
     pub error: Option<SharedString>,
     /// serialized menus waiting to be pushed into the editor (auto tab changed)
     pending: Option<String>,
@@ -17,9 +17,9 @@ impl ManualEditor {
     pub fn new(window: &mut Window, cx: &mut Context<Self>, config: Entity<AppConfig>) -> Self {
         let initial = serde_json::to_string_pretty(&config.read(cx).menus).unwrap_or_default();
         let editor = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .rows(24)
-                .placeholder("[{ \"name\": \"MENU\", \"items\": [] }]")
+            EditorState::new(window, cx)
+                .language("json")
+                .line_number(true)
                 .default_value(&initial)
         });
         let subscriptions = vec![
@@ -87,7 +87,7 @@ impl Render for ManualEditor {
             .gap_2()
             .p_4()
             .size_full()
-            .child(Textarea::new(&self.editor).h_full())
+            .child(Editor::new(&self.editor).h_full())
             .when_some(self.error.clone(), |d, err| {
                 d.child(div().text_color(rgb(0xf38ba8)).child(err))
             })
