@@ -1,8 +1,10 @@
-use crate::ui::config::AppConfig;
-
 use super::{ConfigMode, manual::ManualEditor, menus::MenusEditor, save};
+use crate::ui::config::AppConfig;
 use gpui::*;
-use gpui_component::tab::{Tab, TabBar};
+use gpui_component::{
+    tab::{Tab, TabBar},
+    v_flex,
+};
 
 pub struct ConfigTab {
     pub mode: ConfigMode,
@@ -15,13 +17,11 @@ impl Render for ConfigTab {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let is_auto = matches!(self.mode, ConfigMode::Auto);
 
-        div()
-            .flex()
-            .flex_col()
+        v_flex()
             .gap_2()
             .size_full()
             .child(
-                div().p_2().child(
+                v_flex().items_start().p_2().child(
                     TabBar::new("config-mode")
                         .segmented()
                         .self_start()
@@ -42,9 +42,9 @@ impl Render for ConfigTab {
                         })),
                 ),
             )
-            .child(match self.mode {
+            .child(div().flex_1().w_full().child(match self.mode {
                 ConfigMode::Auto => self.auto.clone().into_any_element(),
                 ConfigMode::Manual => self.manual.clone().into_any_element(),
-            })
+            }))
     }
 }
