@@ -56,6 +56,27 @@ struct NodeForm {
     delay: Entity<InputState>,
 }
 
+fn get_detail_placeholder(kind: NodeKind) -> &'static str {
+    match kind {
+        NodeKind::App => {
+            #[cfg(target_os = "windows")]
+            {
+                "e.g. C:\\Program Files\\App\\app.exe"
+            }
+            #[cfg(target_os = "macos")]
+            {
+                "e.g. /Applications/App.app"
+            }
+            #[cfg(target_os = "linux")]
+            {
+                "e.g. /usr/bin/app"
+            }
+        }
+        NodeKind::Command => "e.g. echo \"hello world\"",
+        NodeKind::Macro => "",
+    }
+}
+
 pub struct MenusEditor {
     config: Entity<AppConfig>,
     open: Option<usize>,
@@ -124,20 +145,28 @@ impl MenusEditor {
             show_terminal: false,
             recording: false,
             keys: Vec::new(),
-            label: input("Label"),
-            detail: input("e.g. code ."),
+            label: input("Name"),
+            detail: input(get_detail_placeholder(NodeKind::Command)),
             delay: input("delay ms"),
         });
         cx.notify();
     }
 
-    fn set_kind(&mut self, ix: &usize, _: &mut Window, cx: &mut Context<Self>) {
+    fn set_kind(&mut self, ix: &usize, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(form) = self.form.as_mut() {
             if form.recording {
                 form.keys = key::stop_recording();
                 form.recording = false;
             }
             form.kind = NodeKind::ALL[*ix];
+
+            let current_val = form.detail.read(cx).value().to_string();
+            let new_placeholder = get_detail_placeholder(form.kind);
+            form.detail = cx.new(|cx| {
+                InputState::new(window, cx)
+                    .placeholder(new_placeholder)
+                    .default_value(current_val)
+            });
         }
         cx.notify();
     }
