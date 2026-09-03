@@ -5,7 +5,6 @@ pub mod manual;
 pub mod menus;
 pub mod viewer;
 pub mod window;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub enum ConfigMode {
     Auto,

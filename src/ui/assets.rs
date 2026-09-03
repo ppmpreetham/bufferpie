@@ -12,6 +12,13 @@ pub struct Assets;
 
 impl AssetSource for Assets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
+        if path.starts_with("app-icons/") {
+            let file = icon_file(path);
+            if let Ok(bytes) = std::fs::read(file) {
+                return Ok(Some(Cow::Owned(bytes)));
+            }
+            return Ok(None);
+        }
         match path {
             "logos/command.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "public/logos/command.svg"
@@ -84,28 +91,10 @@ pub fn extract_icon(exe: &Path) {
     }
 
     let out = icon_file(&format!("app-icons/{hash:x}.png"));
-    let Some(exe) = exe.to_str() else { return };
-    let Some(out) = out.to_str() else { return };
     _ = std::fs::create_dir_all(cache_dir().join("app-icons"));
 
-    let script = format!(
-        "Add-Type -AssemblyName System.Drawing;\
-         [System.Drawing.Icon]::ExtractAssociatedIcon('{exe}')\
-         .ToBitmap().Save('{out}',[System.Drawing.Imaging.ImageFormat]::Png)"
-    );
-
-    let mut cmd = std::process::Command::new("powershell");
-    cmd.args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &script])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    _ = cmd.status();
+    // Extract the icon using the app-icon crate
+    _ = app_icon::extract_icon(exe, &out);
 }
 
 fn hash_path(path: &Path) -> u64 {
