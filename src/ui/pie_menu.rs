@@ -35,6 +35,7 @@ pub struct PieMenuView {
     pub current_menu: usize,
     pub visible: bool,
     pub settings_visible: bool,
+    pub settings_hovered: bool,
     cursor_angle: f32,
     pub config: Entity<AppConfig>,
     state: Arc<MenuState>,
@@ -48,6 +49,7 @@ impl PieMenuView {
             current_menu: 0,
             visible: false,
             settings_visible: false,
+            settings_hovered: false,
             cursor_angle: -PI / 2.0,
             config,
             state,
@@ -56,8 +58,11 @@ impl PieMenuView {
 
     /// runs the hovered item's action and closes, used on caps lock release
     pub fn finish(&mut self, cx: &mut Context<Self>) {
-        if self.visible
-            && let Some(action) = self
+        if self.visible {
+            if self.settings_hovered {
+                self.state.deactivate();
+                open_settings_window(self.config.clone(), cx);
+            } else if let Some(action) = self
                 .config
                 .read(cx)
                 .menus
@@ -67,9 +72,10 @@ impl PieMenuView {
                         .get(selected_sector(self.cursor_angle, menu.items.len()))
                 })
                 .and_then(|item| item.action.clone())
-        {
-            // keep the ui thread free while macros strike keys
-            std::thread::spawn(move || execute(&action));
+            {
+                // keep the ui thread free while macros strike keys
+                std::thread::spawn(move || execute(&action));
+            }
         }
         self.close(cx);
     }
@@ -113,11 +119,13 @@ impl PieMenuView {
         self.x = x;
         self.y = y;
         self.visible = true;
+        self.settings_hovered = false;
         cx.notify();
     }
 
     pub fn close(&mut self, cx: &mut Context<Self>) {
         self.visible = false;
+        self.settings_hovered = false;
         cx.notify();
     }
 
@@ -142,6 +150,7 @@ impl PieMenuView {
 
     pub fn hide_settings_button(&mut self, cx: &mut Context<Self>) {
         self.settings_visible = false;
+        self.settings_hovered = false;
         cx.notify();
     }
 }
@@ -158,7 +167,11 @@ impl Render for PieMenuView {
                 .right(px(16.0))
                 .size(px(48.0))
                 .rounded_full()
-                .bg(rgb(colors.surface))
+                .bg(rgb(if self.settings_hovered {
+                    colors.surface_hover
+                } else {
+                    colors.surface
+                }))
                 .flex()
                 .items_center()
                 .justify_center()
@@ -178,6 +191,12 @@ impl Render for PieMenuView {
                         this.close(cx);
                     }),
                 )
+                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                    if this.settings_hovered != *hovered {
+                        this.settings_hovered = *hovered;
+                        cx.notify();
+                    }
+                }))
                 .into_any_element()
         } else {
             div().into_any_element()
@@ -193,7 +212,13 @@ impl Render for PieMenuView {
             .current_menu
             .min(self.config.read(cx).menus.len().saturating_sub(1));
         let menu = &self.config.read(cx).menus[self.current_menu];
-        let selected = selected_sector(self.cursor_angle, menu.items.len());
+        
+        let selected = if self.settings_hovered {
+            usize::MAX
+        } else {
+            selected_sector(self.cursor_angle, menu.items.len())
+        };
+        
         let menu_name = menu.name.clone();
         let items = menu.items.clone();
 
@@ -209,7 +234,7 @@ impl Render for PieMenuView {
             )
             .child(render_ring(center_x, center_y, &colors))
             // the arc spins uselessly on a single item, only draw it for 2+
-            .children((items.len() > 1).then(|| {
+            .children((items.len() > 1 && !self.settings_hovered).then(|| {
                 render_highlight_arc(center_x, center_y, self.cursor_angle, items.len(), &colors)
             }))
             .children(render_menu_items(
