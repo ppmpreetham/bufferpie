@@ -319,7 +319,7 @@ impl MenusEditor {
                                     .border_1()
                                     .border_color(cx.theme().border)
                                     .text_color(cx.theme().foreground)
-                                    .child(key_label(k))
+                                    .child(key_label(&k))
                             }),
                         )),
                 )
