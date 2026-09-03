@@ -88,7 +88,7 @@ impl AppearanceTab {
                 u32::from_str_radix(color.to_hex().trim_start_matches('#'), 16).unwrap_or(0);
             self.config.update(cx, |c, cx| {
                 slot.set(&mut c.colors, value);
-                let _ = save(c);
+                _ = save(c);
                 cx.notify();
             });
         }

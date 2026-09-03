@@ -90,11 +90,11 @@ pub fn run_keystrokes(keys: &[Key], delay: u32) {
 
     // TODO: log the keys later for user
     for key in keys {
-        let _ = strike(*key, true);
+        _ = strike(*key, true);
         if delay > 0 {
             sleep(delay_duration);
         }
-        let _ = strike(*key, false);
+        _ = strike(*key, false);
     }
 }
 

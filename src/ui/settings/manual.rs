@@ -67,7 +67,7 @@ impl ManualEditor {
                 self.error = None;
                 self.config.update(cx, |c, cx| {
                     c.menus = menus;
-                    let _ = save(c);
+                    _ = save(c);
                     cx.notify();
                 });
             }

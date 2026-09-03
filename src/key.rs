@@ -93,7 +93,7 @@ fn record_press(key: Key, trigger: &UnboundedSender<MenuAction>) {
     }
     state.keys.push(key);
     drop(state);
-    let _ = trigger.unbounded_send(MenuAction::KeysChanged);
+    _ = trigger.unbounded_send(MenuAction::KeysChanged);
 }
 
 fn record_release(key: Key) {
@@ -102,7 +102,7 @@ fn record_release(key: Key) {
 
 pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuAction>) {
     std::thread::spawn(move || {
-        let _ = listen(move |event| match event.event_type {
+        _ = listen(move |event| match event.event_type {
             EventType::KeyPress(Key::CapsLock) => handle_press(&state, &trigger),
             EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
             EventType::KeyPress(Key::Escape) => handle_escape(&state, &trigger),
@@ -118,17 +118,17 @@ pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuA
 
 fn handle_press(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     state.is_key_held.store(true, Relaxed);
-    let _ = trigger.unbounded_send(MenuAction::ShowSettingsButton);
+    _ = trigger.unbounded_send(MenuAction::ShowSettingsButton);
 }
 
 fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     state.is_key_held.store(false, Relaxed);
-    let _ = trigger.unbounded_send(MenuAction::HideSettingsButton);
+    _ = trigger.unbounded_send(MenuAction::HideSettingsButton);
 
     if state.is_menu_active.swap(false, Relaxed) {
         state.deactivate();
 
-        let _ = trigger.unbounded_send(MenuAction::Close);
+        _ = trigger.unbounded_send(MenuAction::Close);
     }
 }
 
@@ -140,7 +140,7 @@ fn handle_escape(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
     if state.is_menu_active.swap(false, Relaxed) {
         state.deactivate();
 
-        let _ = trigger.unbounded_send(MenuAction::Cancel);
+        _ = trigger.unbounded_send(MenuAction::Cancel);
     }
 }
 
@@ -161,7 +161,7 @@ fn handle_move(state: &MenuState, x: f64, y: f64, trigger: &UnboundedSender<Menu
 
     if has_crossed_threshold(state, x, y) {
         state.is_menu_active.store(true, Relaxed);
-        let _ = trigger.unbounded_send(MenuAction::Open {
+        _ = trigger.unbounded_send(MenuAction::Open {
             x: cx as f32,
             y: cy as f32,
         });

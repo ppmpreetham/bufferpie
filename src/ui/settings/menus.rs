@@ -74,7 +74,7 @@ impl MenusEditor {
     fn persist(&mut self, edit: impl FnOnce(&mut AppConfig), cx: &mut Context<Self>) {
         self.config.update(cx, |c, cx| {
             edit(c);
-            let _ = save(c);
+            _ = save(c);
             cx.notify();
         });
     }
@@ -192,7 +192,7 @@ impl MenusEditor {
             if let Ok(Ok(Some(mut paths))) = rx.await
                 && let Some(path) = paths.pop()
             {
-                let _ = detail.update_in(cx, |state, window, cx| {
+                _ = detail.update_in(cx, |state, window, cx| {
                     state.set_value(path.to_string_lossy().to_string(), window, cx);
                 });
             }
@@ -254,7 +254,7 @@ impl MenusEditor {
             let extract = cx.background_spawn(async move { crate::ui::assets::extract_icon(&exe) });
             cx.spawn_in(window, async move |this, cx| {
                 extract.await;
-                let _ = this.update_in(cx, |_, _, _| {});
+                _ = this.update_in(cx, |_, _, _| {});
             })
             .detach();
         }

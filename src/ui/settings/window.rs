@@ -15,7 +15,7 @@ impl Global for SettingsWindow {}
 /// nudges the settings window so it repaints (e.g. while recording keys)
 pub fn refresh_settings(cx: &mut App) {
     if let Some(handle) = cx.try_global::<SettingsWindow>().and_then(|g| g.0) {
-        let _ = handle.update(cx, |_, window, _| window.refresh());
+        _ = handle.update(cx, |_, window, _| window.refresh());
     }
 }
 
@@ -25,7 +25,7 @@ pub fn open_settings_window(config: Entity<AppConfig>, cx: &mut App) {
         .into_iter()
         .find_map(|w| w.downcast::<gpui_component::Root>())
     {
-        let _ = existing.update(cx, |_, window, _| window.activate_window());
+        _ = existing.update(cx, |_, window, _| window.activate_window());
         return;
     }
 

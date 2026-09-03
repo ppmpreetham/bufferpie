@@ -36,7 +36,7 @@ impl Render for ConfigTab {
                             };
                             this.config.update(cx, |c, _| {
                                 c.mode = this.mode.clone();
-                                let _ = save(c);
+                                _ = save(c);
                             });
                             cx.notify();
                         })),

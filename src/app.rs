@@ -19,7 +19,7 @@ pub fn run(cx: &mut App) {
 
     cx.spawn(async move |cx| {
         while let Some(action) = rx.next().await {
-            let _ = window.update(cx, |view, window, cx| match action {
+            _ = window.update(cx, |view, window, cx| match action {
                 MenuAction::Open { x, y } => {
                     view.open_at(x, y, cx);
                     window.activate_window();
@@ -37,7 +37,7 @@ pub fn run(cx: &mut App) {
 
             // the overlay size is derived from real view state every message,
             // so a missed event can never leave an invisible fullscreen layer
-            let _ = window.update(cx, |view, window, cx| {
+            _ = window.update(cx, |view, window, cx| {
                 let active = view.visible || view.settings_visible;
                 let target = if active {
                     Bounds::maximized(None, cx).size

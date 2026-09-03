@@ -27,7 +27,7 @@ pub fn run_command(command: &str, show_terminal: bool) {
         };
 
         // TODO: log errors elsewhere
-        let _ = cmd.spawn();
+        _ = cmd.spawn();
     }
 
     #[cfg(not(windows))]
@@ -36,6 +36,6 @@ pub fn run_command(command: &str, show_terminal: bool) {
         let Some(program) = parts.next() else {
             return;
         };
-        let _ = Command::new(program).args(parts).spawn();
+        _ = Command::new(program).args(parts).spawn();
     }
 }

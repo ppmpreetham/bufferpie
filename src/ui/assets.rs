@@ -86,7 +86,7 @@ pub fn extract_icon(exe: &Path) {
     let out = icon_file(&format!("app-icons/{hash:x}.png"));
     let Some(exe) = exe.to_str() else { return };
     let Some(out) = out.to_str() else { return };
-    let _ = std::fs::create_dir_all(cache_dir().join("app-icons"));
+    _ = std::fs::create_dir_all(cache_dir().join("app-icons"));
 
     let script = format!(
         "Add-Type -AssemblyName System.Drawing;\
@@ -105,7 +105,7 @@ pub fn extract_icon(exe: &Path) {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    let _ = cmd.status();
+    _ = cmd.status();
 }
 
 fn hash_path(path: &Path) -> u64 {
