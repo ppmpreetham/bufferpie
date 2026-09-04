@@ -42,7 +42,7 @@ impl Render for ConfigTab {
                         })),
                 ),
             )
-            .child(div().flex_1().w_full().child(match self.mode {
+            .child(div().flex_1().w_full().overflow_hidden().child(match self.mode {
                 ConfigMode::Auto => self.auto.clone().into_any_element(),
                 ConfigMode::Manual => self.manual.clone().into_any_element(),
             }))

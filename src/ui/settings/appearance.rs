@@ -98,6 +98,9 @@ impl AppearanceTab {
 impl Render for AppearanceTab {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .id("appearance-tab")
+            .size_full()
+            .overflow_y_scroll()
             .flex()
             .flex_col()
             .gap_3()
