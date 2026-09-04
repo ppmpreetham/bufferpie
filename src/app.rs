@@ -21,10 +21,15 @@ pub fn run(cx: &mut App) {
     _ = tray_menu.append(&quit_item);
 
     let icon_bytes = include_bytes!("../readme/Logo.png");
-    let image = image::load_from_memory(icon_bytes).expect("Failed to load tray icon image").into_rgba8();
+    let image = image::load_from_memory(icon_bytes)
+        .expect("Failed to load tray icon image")
+        .into_rgba8();
     let (width, height) = image.dimensions();
     let rgba = image.into_raw();
     let icon = tray_icon::Icon::from_rgba(rgba, width, height).expect("Failed to create tray icon");
+
+    #[cfg(target_os = "linux")]
+    gtk::init().expect("Failed to initialize GTK");
 
     let tray_icon = tray_icon::TrayIconBuilder::new()
         .with_menu(Box::new(tray_menu))
@@ -85,4 +90,5 @@ pub fn run(cx: &mut App) {
         }
     })
     .detach();
+}
 }

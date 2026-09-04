@@ -5474,6 +5474,7 @@ dependencies = [
  "gpui-component",
  "gpui-component-assets",
  "gpui_platform",
+ "gtk",
  "image",
  "open",
  "parking_lot",

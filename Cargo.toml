@@ -26,6 +26,9 @@ gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 app-icon = "0.1.0"
 image = "0.25.10"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18.2"
+
 [build-dependencies]
 winresource = "0.1.31"
 
