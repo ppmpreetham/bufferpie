@@ -72,7 +72,7 @@ impl Render for SettingsView {
                     ),
                 ),
             )
-            .child(div().flex_1().h_full().child(match self.tab {
+            .child(div().flex_1().h_full().overflow_hidden().child(match self.tab {
                 SidebarTab::Appearance => self.appearance_tab.clone().into_any_element(),
                 SidebarTab::Config => self.config_tab.clone().into_any_element(),
             }))

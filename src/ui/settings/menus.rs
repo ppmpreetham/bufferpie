@@ -47,6 +47,7 @@ impl NodeKind {
 /// inline create form bound to a single menu
 struct NodeForm {
     menu_ix: usize,
+    edit_ix: Option<usize>,
     kind: NodeKind,
     show_terminal: bool,
     recording: bool,
@@ -81,6 +82,8 @@ pub struct MenusEditor {
     config: Entity<AppConfig>,
     open: Option<usize>,
     form: Option<NodeForm>,
+    menu_names: Vec<Entity<InputState>>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl MenusEditor {
@@ -89,6 +92,8 @@ impl MenusEditor {
             config,
             open: Some(0),
             form: None,
+            menu_names: Vec::new(),
+            _subscriptions: Vec::new(),
         }
     }
 
@@ -141,6 +146,7 @@ impl MenusEditor {
         };
         self.form = Some(NodeForm {
             menu_ix,
+            edit_ix: None,
             kind: NodeKind::Command,
             show_terminal: false,
             recording: false,
@@ -149,6 +155,39 @@ impl MenusEditor {
             detail: input(get_detail_placeholder(NodeKind::Command)),
             delay: input("delay ms"),
         });
+        cx.notify();
+    }
+
+    fn edit_form(&mut self, menu_ix: usize, node_ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let (kind, show_terminal, detail, keys, delay, item_label) = {
+            let item = &self.config.read(cx).menus[menu_ix].items[node_ix];
+            let (kind, show_terminal, detail, keys, delay) = match &item.action {
+                Some(Action::Command { cmd, show_terminal }) => (NodeKind::Command, *show_terminal, cmd.to_string(), Vec::new(), 50),
+                Some(Action::App { path }) => (NodeKind::App, false, path.to_string_lossy().to_string(), Vec::new(), 50),
+                Some(Action::Macro { keys, delay }) => (NodeKind::Macro, false, "".to_string(), keys.clone(), *delay),
+                None => (NodeKind::Command, false, "".to_string(), Vec::new(), 50),
+            };
+            (kind, show_terminal, detail, keys, delay, item.label.to_string())
+        };
+        
+        let mut input = |placeholder: &'static str, val: &str| {
+            cx.new(|cx| InputState::new(window, cx).placeholder(placeholder).default_value(val))
+        };
+        
+        let new_form = NodeForm {
+            menu_ix,
+            edit_ix: Some(node_ix),
+            kind,
+            show_terminal,
+            recording: false,
+            keys,
+            label: input("Name", &item_label),
+            detail: input(get_detail_placeholder(kind), &detail),
+            delay: input("delay ms", &delay.to_string()),
+        };
+        
+        self.form = Some(new_form);
+        self.open = Some(menu_ix);
         cx.notify();
     }
 
@@ -267,13 +306,19 @@ impl MenusEditor {
         };
 
         let menu_ix = form.menu_ix;
+        let new_item = Item {
+            label: label.into(),
+            action: Some(action),
+            celltype: CellType::Normal,
+        };
+
         self.persist(
             |c| {
-                c.menus[menu_ix].items.push(Item {
-                    label: label.into(),
-                    action: Some(action),
-                    celltype: CellType::Normal,
-                })
+                if let Some(edit_ix) = form.edit_ix {
+                    c.menus[menu_ix].items[edit_ix] = new_item;
+                } else {
+                    c.menus[menu_ix].items.push(new_item);
+                }
             },
             cx,
         );
@@ -398,7 +443,7 @@ impl MenusEditor {
                     .child(
                         Button::new(("create", menu_ix))
                             .primary()
-                            .label("Create")
+                            .label(if form.edit_ix.is_some() { "Save" } else { "Create" })
                             .disabled(invalid)
                             .on_click(cx.listener(Self::create_node)),
                     ),
@@ -408,21 +453,55 @@ impl MenusEditor {
 }
 
 impl Render for MenusEditor {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let menus = self.config.read(cx).menus.clone();
+        
+        if self.menu_names.len() != menus.len() {
+            self.menu_names.clear();
+            self._subscriptions.clear();
+            for (mi, menu) in menus.iter().enumerate() {
+                let name = menu.name.to_string();
+                let input = cx.new(|cx| InputState::new(window, cx).default_value(name));
+                let sub = cx.subscribe(&input, move |this: &mut Self, state, ev, cx| {
+                    if let gpui_component::input::InputEvent::Change = ev {
+                        let text = state.read(cx).value().to_string();
+                        this.persist(
+                            |c| {
+                                if let Some(m) = c.menus.get_mut(mi) {
+                                    m.name = text.into();
+                                }
+                            },
+                            cx,
+                        );
+                    }
+                });
+                self.menu_names.push(input);
+                self._subscriptions.push(sub);
+            }
+        }
 
-        let mut accordion = Accordion::new("menus").multiple(false);
+
+        let mut accordion = Accordion::new("menus")
+            .multiple(false)
+            .on_toggle_click(cx.listener(|this, open_indices: &[usize], _, cx| {
+                this.open = open_indices.first().copied();
+                cx.notify();
+            }));
+
         for (mi, menu) in menus.iter().enumerate() {
             let expanded = self.open == Some(mi);
             let mut item = AccordionItem::new()
                 .icon(Icon::new(IconName::ChartPie))
                 .title(
-                    h_flex().gap_2().child(menu.name.clone()).child(
-                        div()
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(format!("{} nodes", menu.items.len())),
-                    ),
+                    h_flex()
+                        .gap_2()
+                        .child(Input::new(&self.menu_names[mi]).w(px(140.0)))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(format!("{} nodes", menu.items.len())),
+                        ),
                 );
 
             for (ni, node) in menu.items.iter().enumerate() {
@@ -451,12 +530,25 @@ impl Render for MenusEditor {
                                 .child(node.label.clone()),
                         )
                         .child(
-                            Button::new(("del-node", ni))
-                                .danger()
-                                .compact()
-                                .icon(IconName::Delete)
-                                .on_click(
-                                    cx.listener(move |this, _, _, cx| this.remove_node(mi, ni, cx)),
+                            h_flex()
+                                .gap_2()
+                                .child(
+                                    Button::new(("edit-node", ni))
+                                        .outline()
+                                        .compact()
+                                        .icon(IconName::Settings)
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.edit_form(mi, ni, window, cx)
+                                        })),
+                                )
+                                .child(
+                                    Button::new(("del-node", ni))
+                                        .danger()
+                                        .compact()
+                                        .icon(IconName::Delete)
+                                        .on_click(
+                                            cx.listener(move |this, _, _, cx| this.remove_node(mi, ni, cx)),
+                                        ),
                                 ),
                         ),
                 );
@@ -499,7 +591,7 @@ impl Render for MenusEditor {
             .overflow_y_scroll()
             .p_4()
             .gap_3()
-            .child(accordion.flex_1())
+            .child(accordion)
             .child(
                 Button::new("add-menu")
                     .outline()

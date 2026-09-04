@@ -19,6 +19,7 @@ pub enum MenuAction {
     HideSettingsButton,
     /// recorded keys changed, the settings window should repaint
     KeysChanged,
+    OpenSettings,
 }
 
 const MOTION_THRESHOLD: i32 = 64;

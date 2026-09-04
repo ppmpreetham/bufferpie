@@ -14,6 +14,40 @@ pub fn run(cx: &mut App) {
     let state = Arc::new(key::MenuState::default());
     let (tx, mut rx) = unbounded();
 
+    let tray_menu = tray_icon::menu::Menu::new();
+    let settings_item = tray_icon::menu::MenuItem::with_id("settings", "Settings", true, None);
+    let quit_item = tray_icon::menu::MenuItem::with_id("quit", "Quit", true, None);
+    _ = tray_menu.append(&settings_item);
+    _ = tray_menu.append(&quit_item);
+
+    let icon_bytes = include_bytes!("../readme/Logo.png");
+    let image = image::load_from_memory(icon_bytes).expect("Failed to load tray icon image").into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
+    let icon = tray_icon::Icon::from_rgba(rgba, width, height).expect("Failed to create tray icon");
+
+    let tray_icon = tray_icon::TrayIconBuilder::new()
+        .with_menu(Box::new(tray_menu))
+        .with_tooltip("Buffer Pie")
+        .with_icon(icon)
+        .build()
+        .unwrap();
+
+    std::mem::forget(tray_icon);
+
+    let tx_tray = tx.clone();
+    std::thread::spawn(move || {
+        let receiver = tray_icon::menu::MenuEvent::receiver();
+        while let Ok(event) = receiver.recv() {
+            if event.id.0 == "settings" {
+                _ = tx_tray.unbounded_send(MenuAction::OpenSettings);
+            }
+            if event.id.0 == "quit" {
+                std::process::exit(0);
+            }
+        }
+    });
+
     key::spawn_input_monitor(state.clone(), tx);
     let window = create_pie_menu_window(cx, state).expect("failed to start");
 
@@ -33,10 +67,12 @@ pub fn run(cx: &mut App) {
                 MenuAction::KeysChanged => {
                     crate::ui::settings::window::refresh_settings(cx);
                 }
+                MenuAction::OpenSettings => {
+                    let config = view.config.clone();
+                    crate::ui::settings::window::open_settings_window(config, cx);
+                }
             });
 
-            // the overlay size is derived from real view state every message,
-            // so a missed event can never leave an invisible fullscreen layer
             _ = window.update(cx, |view, window, cx| {
                 let active = view.visible || view.settings_visible;
                 let target = if active {

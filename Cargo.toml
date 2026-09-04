@@ -24,3 +24,12 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["fo
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 app-icon = "0.1.0"
+image = "0.25.10"
+
+[build-dependencies]
+winresource = "0.1.31"
+
+[package.metadata.bundle]
+name = "Buffer Pie"
+identifier = "com.buffer.pie"
+icon = ["readme/Logo.png"]
