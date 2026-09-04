@@ -90,5 +90,5 @@ pub fn run(cx: &mut App) {
         }
     })
     .detach();
-}
+
 }
