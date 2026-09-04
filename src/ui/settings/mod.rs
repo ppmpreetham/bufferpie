@@ -18,7 +18,7 @@ use std::path::PathBuf;
 fn config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(std::env::temp_dir)
-        .join("cyber_pie_daemon")
+        .join("buffer_pie_daemon")
         .join("config.json")
 }
 
