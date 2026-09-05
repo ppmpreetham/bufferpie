@@ -55,13 +55,14 @@ pub fn run(cx: &mut App) {
 
     key::spawn_input_monitor(state.clone(), tx);
     let window = create_pie_menu_window(cx, state).expect("failed to start");
+    _ = window.update(cx, |_, window, _| crate::platform::make_no_activate(window));
 
     cx.spawn(async move |cx| {
         while let Some(action) = rx.next().await {
             _ = window.update(cx, |view, window, cx| match action {
                 MenuAction::Open { x, y } => {
                     view.open_at(x, y, cx);
-                    window.activate_window();
+                    crate::platform::raise(window);
                 }
                 // releasing caps lock fires the hovered item before closing
                 MenuAction::Close => view.finish(cx),
@@ -83,7 +84,7 @@ pub fn run(cx: &mut App) {
                 let target = if active {
                     Bounds::maximized(None, cx).size
                 } else {
-                    size(px(0.0), px(0.0))
+                    size(px(1.0), px(1.0))
                 };
                 window.resize(target);
             });

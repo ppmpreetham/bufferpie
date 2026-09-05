@@ -25,7 +25,7 @@ pub fn create_pie_menu_window(
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::new(
                 point(px(0.0), px(0.0)),
-                size(px(0.0), px(0.0)),
+                size(px(1.0), px(1.0)),
             ))),
             titlebar: None,
             focus: false,

@@ -13,6 +13,7 @@ futures = "0.3.34"
 
 open = "5.4.2"
 parking_lot = "0.12.5"
+raw-window-handle = "0.6"
 rdev = { version = "0.5.3", features = ["serialize", "serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_derive = "1.0.229"

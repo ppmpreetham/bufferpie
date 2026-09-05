@@ -30,17 +30,40 @@ pub fn key_label(key: &Key) -> Cow<'static, str> {
     }
 }
 
-/// strikes a sequence of keys with an optional delay in between
+fn is_modifier(key: &Key) -> bool {
+    matches!(
+        key,
+        Key::Alt
+            | Key::AltGr
+            | Key::ControlLeft
+            | Key::ControlRight
+            | Key::MetaLeft
+            | Key::MetaRight
+            | Key::ShiftLeft
+            | Key::ShiftRight
+    )
+}
+
 pub fn run_keystrokes(keys: &[Key], delay: u32) {
-    let delay_duration = Duration::from_millis(delay as u64);
+    let delay_duration = Duration::from_millis(delay.max(10) as u64);
 
     // TODO: log the keys later for user
-    for key in keys {
+    let mut held = Vec::new();
+    for key in keys.iter().filter(|key| is_modifier(key)) {
         _ = strike(*key, true);
-        if delay > 0 {
-            sleep(delay_duration);
-        }
+        held.push(*key);
+        sleep(delay_duration);
+    }
+
+    for key in keys.iter().filter(|key| !is_modifier(key)) {
+        _ = strike(*key, true);
+        sleep(delay_duration);
         _ = strike(*key, false);
+        sleep(delay_duration);
+    }
+
+    for key in held.into_iter().rev() {
+        _ = strike(key, false);
     }
 }
 

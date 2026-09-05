@@ -5478,6 +5478,7 @@ dependencies = [
  "image",
  "open",
  "parking_lot",
+ "raw-window-handle",
  "rdev",
  "serde",
  "serde_derive",

@@ -6,6 +6,7 @@
 mod actions;
 mod app;
 mod key;
+mod platform;
 mod startup;
 mod ui;
 
