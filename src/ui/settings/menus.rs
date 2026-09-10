@@ -19,6 +19,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputState},
+    scroll::ScrollableElement as _,
     switch::Switch,
     tab::{Tab, TabBar},
     v_flex,
@@ -129,6 +130,7 @@ impl MenusEditor {
         );
         self.open = None;
         self.form = None;
+        cx.notify();
     }
 
     fn remove_node(&mut self, menu_ix: usize, node_ix: usize, cx: &mut Context<Self>) {
@@ -138,6 +140,7 @@ impl MenusEditor {
             },
             cx,
         );
+        cx.notify();
     }
 
     fn open_form(&mut self, menu_ix: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -483,6 +486,7 @@ impl Render for MenusEditor {
 
         let mut accordion = Accordion::new("menus")
             .multiple(false)
+            .h_auto()
             .on_toggle_click(cx.listener(|this, open_indices: &[usize], _, cx| {
                 this.open = open_indices.first().copied();
                 cx.notify();
@@ -588,7 +592,7 @@ impl Render for MenusEditor {
         v_flex()
             .id("menus-editor")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .p_4()
             .gap_3()
             .child(accordion)
