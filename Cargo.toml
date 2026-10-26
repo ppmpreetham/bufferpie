@@ -5,33 +5,31 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+app-icon = "0.1.0"
 auto-launch = "0.6.0"
-clap = { version = "4.6.6", features = ["derive"] }
-device_query = "4.0.1"
 dirs = "6.0.0"
 futures = "0.3.34"
-
+gpui-kit = "0.8"
+image = "0.25.10"
 open = "5.4.2"
 parking_lot = "0.12.5"
 raw-window-handle = "0.6"
 rdev = { version = "0.5.3", features = ["serialize", "serde"] }
+rust-embed = "8.12.0"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_derive = "1.0.229"
 serde_json = "1.0.151"
 tray-icon = "0.24.2"
-
-gpui = { git = "https://github.com/zed-industries/zed" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
-app-icon = "0.1.0"
-image = "0.25.10"
+zopra = "0.2.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18.2"
 
 [build-dependencies]
 winresource = "0.1.31"
+
+[patch.crates-io]
+zopra = { path = "../zopra" }
+zopra-gpui-view = { path = "../gpui-rsx" }
 
 [package.metadata.bundle]
 name = "Buffer Pie"

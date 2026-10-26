@@ -1,17 +1,10 @@
 use futures::channel::mpsc::UnboundedSender;
-use parking_lot::Mutex;
 use rdev::{EventType, Key, listen};
-use std::collections::HashSet;
-use std::sync::{
-    Arc, OnceLock,
-    atomic::{AtomicBool, AtomicI32, Ordering::Relaxed},
-};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering::Relaxed};
+use std::sync::{Mutex, MutexGuard};
 
 pub enum MenuAction {
-    Open {
-        x: f32,
-        y: f32,
-    },
+    Open { x: f32, y: f32 },
     Close,
     /// closes without running the selected action
     Cancel,
@@ -24,153 +17,107 @@ pub enum MenuAction {
 
 const MOTION_THRESHOLD: i32 = 64;
 
-#[derive(Default)]
-struct Position {
-    x: AtomicI32,
-    y: AtomicI32,
+static HELD: AtomicBool = AtomicBool::new(false);
+static ACTIVE: AtomicBool = AtomicBool::new(false);
+/// where the cursor was when caps lock went down, 0/0 until the first move
+static ORIGIN: [AtomicI32; 2] = [AtomicI32::new(0), AtomicI32::new(0)];
+
+/// stops tracking the open menu so a later release won't fire its action
+pub fn deactivate() {
+    ACTIVE.store(false, Relaxed);
+    ORIGIN.iter().for_each(|axis| axis.store(0, Relaxed));
 }
 
-#[derive(Default)]
-pub struct MenuState {
-    is_key_held: AtomicBool,
-    is_menu_active: AtomicBool,
-    position: Position,
-}
-
-impl MenuState {
-    /// stops tracking the open menu so a later release won't fire its action
-    pub fn deactivate(&self) {
-        self.is_menu_active.store(false, Relaxed);
-        self.position.x.store(0, Relaxed);
-        self.position.y.store(0, Relaxed);
+/// forgets the open menu, returns whether there was one
+fn dismiss() -> bool {
+    let active = ACTIVE.swap(false, Relaxed);
+    if active {
+        deactivate();
     }
+    active
 }
 
 /// live macro recorder shared between the input thread and the settings ui
-struct RecorderState {
+struct Recorder {
     recording: bool,
-    pressed: HashSet<Key>,
+    pressed: Vec<Key>,
     keys: Vec<Key>,
 }
 
-fn recorder() -> &'static Mutex<RecorderState> {
-    static RECORDER: OnceLock<Mutex<RecorderState>> = OnceLock::new();
-    RECORDER.get_or_init(|| {
-        Mutex::new(RecorderState {
-            recording: false,
-            pressed: HashSet::new(),
-            keys: Vec::new(),
-        })
-    })
+const IDLE: Recorder = Recorder { recording: false, pressed: Vec::new(), keys: Vec::new() };
+static RECORDER: Mutex<Recorder> = Mutex::new(IDLE);
+
+fn recorder() -> MutexGuard<'static, Recorder> {
+    RECORDER.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 pub fn start_recording() {
-    let mut state = recorder().lock();
-    *state = RecorderState {
-        recording: true,
-        pressed: HashSet::new(),
-        keys: Vec::new(),
-    };
+    *recorder() = Recorder { recording: true, ..IDLE };
 }
 
 /// stops recording and hands over the captured keys
 pub fn stop_recording() -> Vec<Key> {
-    let mut state = recorder().lock();
-    state.recording = false;
-    state.pressed.clear();
-    std::mem::take(&mut state.keys)
+    let mut recorder = recorder();
+    recorder.recording = false;
+    recorder.pressed.clear();
+    std::mem::take(&mut recorder.keys)
 }
 
 /// snapshot of the captured keys for display
 pub fn recorded() -> Vec<Key> {
-    recorder().lock().keys.clone()
+    recorder().keys.clone()
 }
 
-/// accepts a global key press, storing it while recording (ignores auto-repeat)
-fn record_press(key: Key, trigger: &UnboundedSender<MenuAction>) {
-    let mut state = recorder().lock();
-    if !state.pressed.insert(key) || !state.recording {
-        return;
-    }
-    state.keys.push(key);
-    drop(state);
-    _ = trigger.unbounded_send(MenuAction::KeysChanged);
-}
-
-fn record_release(key: Key) {
-    recorder().lock().pressed.remove(&key);
-}
-
-pub fn spawn_input_monitor(state: Arc<MenuState>, trigger: UnboundedSender<MenuAction>) {
+pub fn spawn_input_monitor(tx: UnboundedSender<MenuAction>) {
     std::thread::spawn(move || {
+        let send = move |action: MenuAction| _ = tx.unbounded_send(action);
         _ = listen(move |event| match event.event_type {
-            EventType::KeyPress(Key::CapsLock) => handle_press(&state, &trigger),
-            EventType::KeyRelease(Key::CapsLock) => handle_release(&state, &trigger),
-            EventType::KeyPress(Key::Escape) => handle_escape(&state, &trigger),
-
-            EventType::KeyPress(key) => record_press(key, &trigger),
-            EventType::KeyRelease(key) => record_release(key),
-
-            EventType::MouseMove { x, y } => handle_move(&state, x, y, &trigger),
+            EventType::KeyPress(Key::CapsLock) => {
+                HELD.store(true, Relaxed);
+                send(MenuAction::ShowSettingsButton);
+            }
+            EventType::KeyRelease(Key::CapsLock) => {
+                HELD.store(false, Relaxed);
+                send(MenuAction::HideSettingsButton);
+                if dismiss() {
+                    send(MenuAction::Close);
+                }
+            }
+            // esc dismisses the menu without firing its hovered action, and a
+            // still-held caps must not reopen it on the next mouse move
+            EventType::KeyPress(Key::Escape) => {
+                HELD.store(false, Relaxed);
+                if dismiss() {
+                    send(MenuAction::Cancel);
+                }
+            }
+            // stores global presses while recording, ignoring auto-repeat
+            EventType::KeyPress(key) => {
+                let mut recorder = recorder();
+                if recorder.pressed.contains(&key) {
+                    return;
+                }
+                recorder.pressed.push(key);
+                if recorder.recording {
+                    recorder.keys.push(key);
+                    drop(recorder);
+                    send(MenuAction::KeysChanged);
+                }
+            }
+            EventType::KeyRelease(key) => recorder().pressed.retain(|pressed| *pressed != key),
+            EventType::MouseMove { x, y } if HELD.load(Relaxed) && !ACTIVE.load(Relaxed) => {
+                let (x, y) = (x as i32, y as i32);
+                if ORIGIN.iter().all(|axis| axis.load(Relaxed) == 0) {
+                    ORIGIN[0].store(x, Relaxed);
+                    ORIGIN[1].store(y, Relaxed);
+                }
+                let [ox, oy] = [0, 1].map(|axis| ORIGIN[axis].load(Relaxed));
+                if (x - ox).pow(2) + (y - oy).pow(2) > MOTION_THRESHOLD {
+                    ACTIVE.store(true, Relaxed);
+                    send(MenuAction::Open { x: ox as f32, y: oy as f32 });
+                }
+            }
             _ => {}
         });
     });
-}
-
-fn handle_press(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
-    state.is_key_held.store(true, Relaxed);
-    _ = trigger.unbounded_send(MenuAction::ShowSettingsButton);
-}
-
-fn handle_release(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
-    state.is_key_held.store(false, Relaxed);
-    _ = trigger.unbounded_send(MenuAction::HideSettingsButton);
-
-    if state.is_menu_active.swap(false, Relaxed) {
-        state.deactivate();
-
-        _ = trigger.unbounded_send(MenuAction::Close);
-    }
-}
-
-/// esc dismisses the open menu without firing its hovered action
-fn handle_escape(state: &MenuState, trigger: &UnboundedSender<MenuAction>) {
-    // a still-held caps must not reopen the menu on the next mouse move
-    state.is_key_held.store(false, Relaxed);
-
-    if state.is_menu_active.swap(false, Relaxed) {
-        state.deactivate();
-
-        _ = trigger.unbounded_send(MenuAction::Cancel);
-    }
-}
-
-fn handle_move(state: &MenuState, x: f64, y: f64, trigger: &UnboundedSender<MenuAction>) {
-    if !state.is_key_held.load(Relaxed) || state.is_menu_active.load(Relaxed) {
-        return;
-    }
-
-    let mut cx = state.position.x.load(Relaxed);
-    let mut cy = state.position.y.load(Relaxed);
-
-    if cx == 0 && cy == 0 {
-        cx = x as i32;
-        cy = y as i32;
-        state.position.x.store(cx, Relaxed);
-        state.position.y.store(cy, Relaxed);
-    }
-
-    if has_crossed_threshold(state, x, y) {
-        state.is_menu_active.store(true, Relaxed);
-        _ = trigger.unbounded_send(MenuAction::Open {
-            x: cx as f32,
-            y: cy as f32,
-        });
-    }
-}
-
-fn has_crossed_threshold(state: &MenuState, x: f64, y: f64) -> bool {
-    let dx = (x as i32) - state.position.x.load(Relaxed);
-    let dy = (y as i32) - state.position.y.load(Relaxed);
-    (dx * dx) + (dy * dy) > MOTION_THRESHOLD
 }

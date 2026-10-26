@@ -5,16 +5,20 @@
 
 mod actions;
 mod app;
+mod assets;
+mod config;
 mod key;
+mod pie;
 mod platform;
+mod settings;
+#[cfg(not(debug_assertions))]
 mod startup;
-mod ui;
 
 fn main() {
     #[cfg(not(debug_assertions))]
     startup::register_startup();
 
-    gpui_platform::application()
-        .with_assets(ui::assets::Assets)
+    gpui_kit::application()
+        .with_assets(assets::Assets)
         .run(app::run);
 }
